@@ -1,13 +1,14 @@
 import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import { createAnthropic } from "@ai-sdk/anthropic";
 
-type ModelPurpose = "quiz" | "coaching" | "analysis" | "report";
+type ModelPurpose = "quiz" | "coaching" | "analysis" | "report" | "mentor-briefing";
 
 const ENV_KEY_MAP: Record<ModelPurpose, string> = {
   quiz: "AI_MODEL_QUIZ",
   coaching: "AI_MODEL_COACHING",
   analysis: "AI_MODEL_ANALYSIS",
   report: "AI_MODEL_REPORT",
+  "mentor-briefing": "AI_MODEL_MENTOR_BRIEFING",
 };
 
 const MODEL_ID_MAP = {

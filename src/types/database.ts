@@ -316,6 +316,75 @@ export type Database = {
         };
         Relationships: [];
       };
+      courses: {
+        Row: {
+          id: string;
+          academy_id: string;
+          title: string;
+          category: string;
+          topics: string[];
+          instructor_name: string;
+          schedule: string | null;
+          is_active: boolean;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          academy_id: string;
+          title: string;
+          category: string;
+          topics?: string[];
+          instructor_name: string;
+          schedule?: string | null;
+          is_active?: boolean;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          academy_id?: string;
+          title?: string;
+          category?: string;
+          topics?: string[];
+          instructor_name?: string;
+          schedule?: string | null;
+          is_active?: boolean;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
+      consultation_notes: {
+        Row: {
+          id: string;
+          instructor_id: string;
+          student_id: string;
+          academy_id: string;
+          type: string;
+          content: string;
+          next_consultation_date: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          instructor_id: string;
+          student_id: string;
+          academy_id: string;
+          type: string;
+          content: string;
+          next_consultation_date?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          instructor_id?: string;
+          student_id?: string;
+          academy_id?: string;
+          type?: string;
+          content?: string;
+          next_consultation_date?: string | null;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
     };
     Views: Record<string, never>;
     Functions: Record<string, never>;

@@ -14,3 +14,10 @@ export const SESSION_CODE_LENGTH = 6;
 
 // 이해도 분석 설정
 export const WEAK_TOPIC_THRESHOLD = 60; // 정답률 60% 이하를 약점 토픽으로 분류
+
+// 멘토 이탈 위험 감지 설정 (3-signal composite)
+export const RISK_ACCURACY_THRESHOLD = 40; // 최근 3세션 정답률 이 값 미만이면 신호 발동
+export const RISK_ACCURACY_SESSION_COUNT = 3; // 정답률 판단 기준 세션 수
+export const RISK_ABSENCE_THRESHOLD = 2; // 연속 미참여 이 값 이상이면 신호 발동
+export const RISK_SIGNAL_COUNT_FOR_HIGH = 2; // 이 값 이상 신호 → 위험(HIGH)
+export const AI_TEMPERATURE_MENTOR_BRIEFING = 0.5; // 멘토 브리핑은 리포트와 동일
