@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { generateObject } from "ai";
+import { generateText, Output } from "ai";
 import { z } from "zod/v4";
 import { createClient } from "@/lib/supabase/server";
 import { getModel } from "@/lib/ai/model";
@@ -40,11 +40,11 @@ async function callQuizGeneration(
 ): Promise<GeneratedQuizQuestion[]> {
   const model = getModel("quiz");
 
-  const { object } = await generateObject({
+  const { output } = await generateText({
     model,
     // temperature: 0.3 — 퀴즈는 정확도 우선, 창의성 최소화
     temperature: AI_TEMPERATURE_QUIZ,
-    schema: QuizGenerationResponseSchema,
+    output: Output.object({ schema: QuizGenerationResponseSchema }),
     system: buildQuizSystemPrompt(),
     prompt: buildQuizUserPrompt({
       subject: params.subject,
@@ -55,7 +55,7 @@ async function callQuizGeneration(
     }),
   });
 
-  return object.questions;
+  return output!.questions;
 }
 
 export async function POST(req: NextRequest) {

@@ -21,3 +21,6 @@ export const RISK_ACCURACY_SESSION_COUNT = 3; // 정답률 판단 기준 세션 
 export const RISK_ABSENCE_THRESHOLD = 2; // 연속 미참여 이 값 이상이면 신호 발동
 export const RISK_SIGNAL_COUNT_FOR_HIGH = 2; // 이 값 이상 신호 → 위험(HIGH)
 export const AI_TEMPERATURE_MENTOR_BRIEFING = 0.5; // 멘토 브리핑은 리포트와 동일
+
+// 대시보드 설정
+export const RESPONSE_RATE_THRESHOLD = 50; // 응답률 이 비율 미만이면 이탈 위험으로 분류

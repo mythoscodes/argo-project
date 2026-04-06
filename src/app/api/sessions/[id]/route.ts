@@ -62,7 +62,16 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
     return NextResponse.json({ error: "인증이 필요합니다" }, { status: 401 });
   }
 
-  const body = await request.json();
+  let body: unknown;
+  try {
+    body = await request.json();
+  } catch {
+    return NextResponse.json(
+      { error: "요청 본문을 파싱할 수 없습니다." },
+      { status: 400 }
+    );
+  }
+
   const parsed = updateSessionSchema.safeParse(body);
 
   if (!parsed.success) {

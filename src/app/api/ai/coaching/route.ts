@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { generateObject } from "ai";
+import { generateText, Output } from "ai";
 import { z } from "zod/v4";
 import { createClient } from "@/lib/supabase/server";
 import { getModel } from "@/lib/ai/model";
@@ -43,16 +43,16 @@ async function callCoachingGeneration(params: {
 }): Promise<CoachingResponse> {
   const model = getModel("coaching");
 
-  const { object } = await generateObject({
+  const { output } = await generateText({
     model,
     // temperature: 0.5 — 코칭은 자연스러운 제안과 다양한 교수법 아이디어가 필요
     temperature: AI_TEMPERATURE_COACHING,
-    schema: coachingResponseSchema,
+    output: Output.object({ schema: coachingResponseSchema }),
     system: buildCoachingSystemPrompt(),
     prompt: buildCoachingUserPrompt(params),
   });
 
-  return object;
+  return output!;
 }
 
 type CoachingResult =

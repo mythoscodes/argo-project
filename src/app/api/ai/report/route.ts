@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { generateObject } from "ai";
+import { generateText, Output } from "ai";
 import { z } from "zod/v4";
 import { createClient } from "@/lib/supabase/server";
 import { getModel } from "@/lib/ai/model";
@@ -41,16 +41,16 @@ async function callReportGeneration(params: {
 }): Promise<ReportResponse> {
   const model = getModel("report");
 
-  const { object } = await generateObject({
+  const { output } = await generateText({
     model,
     // temperature: 0.5 — 리포트는 자연스러운 서술과 다양한 추천 표현이 필요
     temperature: AI_TEMPERATURE_REPORT,
-    schema: reportResponseSchema,
+    output: Output.object({ schema: reportResponseSchema }),
     system: buildReportSystemPrompt(),
     prompt: buildReportUserPrompt(params),
   });
 
-  return object;
+  return output!;
 }
 
 type ReportResult =
@@ -232,7 +232,7 @@ export async function POST(req: NextRequest) {
   );
 
   const weakTopics = Object.entries(topicScores)
-    .filter(([, score]) => score < WEAK_TOPIC_THRESHOLD)
+    .filter(([, score]) => score <= WEAK_TOPIC_THRESHOLD)
     .map(([topic]) => topic);
 
   const totalQuizzes = studentResponses?.length ?? 0;

@@ -1,10 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { NextRequest } from "next/server";
-import { generateObject } from "ai";
+import { generateText } from "ai";
 
 vi.mock("@/lib/supabase/server", () => ({ createClient: vi.fn() }));
 vi.mock("@/lib/ai/model", () => ({ getModel: vi.fn() }));
-vi.mock("ai", () => ({ generateObject: vi.fn() }));
+vi.mock("ai", () => ({ generateText: vi.fn(), Output: { object: vi.fn().mockReturnValue({}) } }));
 vi.mock("@/lib/ai/prompts/report", () => ({
   buildReportSystemPrompt: vi.fn().mockReturnValue("system prompt"),
   buildReportUserPrompt: vi.fn().mockReturnValue("user prompt"),
@@ -196,9 +196,9 @@ function makeGetRequest(params: Record<string, string>): NextRequest {
 describe("POST /api/ai/report", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.mocked(generateObject).mockResolvedValue({
-      object: validReportData,
-    } as Awaited<ReturnType<typeof generateObject>>);
+    vi.mocked(generateText).mockResolvedValue({
+      output: validReportData,
+    } as Awaited<ReturnType<typeof generateText>>);
   });
 
   // 1. auth.getUser() 오류 시 401
@@ -344,12 +344,12 @@ describe("POST /api/ai/report", () => {
   it("AI 생성 실패 시 1회 재시도 후 502 반환", async () => {
     const { mockSupabase } = buildSupabaseMock();
     setMockClient(mockSupabase);
-    vi.mocked(generateObject).mockRejectedValue(new Error("AI 서비스 오류"));
+    vi.mocked(generateText).mockRejectedValue(new Error("AI 서비스 오류"));
 
     const res = await POST(makePostRequest({ sessionId: VALID_SESSION_ID }));
     expect(res.status).toBe(502);
-    // generateObject 가 2회(최초 1회 + 재시도 1회) 호출되어야 함
-    expect(vi.mocked(generateObject)).toHaveBeenCalledTimes(2);
+    // generateText 가 2회(최초 1회 + 재시도 1회) 호출되어야 함
+    expect(vi.mocked(generateText)).toHaveBeenCalledTimes(2);
   });
 });
 

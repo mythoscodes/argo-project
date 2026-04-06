@@ -1,9 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { WEAK_TOPIC_THRESHOLD } from "@/lib/constants";
-
-// 응답률 기준: 이 비율 미만이면 이탈 위험으로 분류
-const RESPONSE_RATE_THRESHOLD = 50;
+import { WEAK_TOPIC_THRESHOLD, RESPONSE_RATE_THRESHOLD } from "@/lib/constants";
 
 interface SessionStatRow {
   sessionId: string;

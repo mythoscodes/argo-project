@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { generateObject } from "ai";
+import { generateText, Output } from "ai";
 import { z } from "zod/v4";
 import { createClient } from "@/lib/supabase/server";
 import { getModel } from "@/lib/ai/model";
@@ -42,15 +42,15 @@ async function callMentorBriefingGeneration(params: {
 }): Promise<MentorBriefingResponse> {
   const model = getModel("mentor-briefing");
 
-  const { object } = await generateObject({
+  const { output } = await generateText({
     model,
     temperature: AI_TEMPERATURE_MENTOR_BRIEFING,
-    schema: mentorBriefingResponseSchema,
+    output: Output.object({ schema: mentorBriefingResponseSchema }),
     system: buildMentorBriefingSystemPrompt(),
     prompt: buildMentorBriefingUserPrompt(params),
   });
 
-  return object;
+  return output!;
 }
 
 type BriefingResult =

@@ -5,6 +5,7 @@ import {
   RISK_ACCURACY_SESSION_COUNT,
   RISK_ABSENCE_THRESHOLD,
   RISK_SIGNAL_COUNT_FOR_HIGH,
+  WEAK_TOPIC_THRESHOLD,
 } from "@/lib/constants";
 
 interface RiskSignal {
@@ -95,7 +96,7 @@ export async function GET() {
   // 전체 응답 데이터 (세션별 정답 집계용)
   const { data: allResponses } = await supabase
     .from("responses")
-    .select("student_id, session_id, is_correct, response_time_ms")
+    .select("student_id, session_id, quiz_id, is_correct, response_time_ms")
     .in("session_id", sessionIds);
 
   // 퀴즈 데이터 (약점 토픽용)
@@ -226,7 +227,7 @@ export async function GET() {
     // 약점 토픽 (정답률 60% 미만)
     const topicStats = new Map<string, { correct: number; total: number }>();
     for (const resp of studentResponses) {
-      const topic = quizTopicMap.get(resp.session_id) ?? "기타";
+      const topic = quizTopicMap.get(resp.quiz_id) ?? "기타";
       const existing = topicStats.get(topic) ?? { correct: 0, total: 0 };
       topicStats.set(topic, {
         correct: existing.correct + (resp.is_correct ? 1 : 0),
@@ -237,7 +238,8 @@ export async function GET() {
     const weakTopics = [...topicStats.entries()]
       .filter(
         ([, stats]) =>
-          stats.total > 0 && stats.correct / stats.total < 0.6
+          stats.total > 0 &&
+          (stats.correct / stats.total) * 100 < WEAK_TOPIC_THRESHOLD
       )
       .map(([topic]) => topic);
 
