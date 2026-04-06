@@ -50,7 +50,8 @@ async function callMentorBriefingGeneration(params: {
     prompt: buildMentorBriefingUserPrompt(params),
   });
 
-  return output!;
+  if (!output) throw new Error("AI 응답이 스키마에 맞지 않습니다.");
+  return output;
 }
 
 type BriefingResult =
@@ -250,9 +251,10 @@ export async function POST(req: NextRequest) {
       );
     });
 
+  const nonZeroSpeeds = recentSpeeds.filter((s) => s > 0);
   const speedTriggered =
-    recentSpeeds.length >= 2 &&
-    recentSpeeds[0] > recentSpeeds[recentSpeeds.length - 1] * 1.3;
+    nonZeroSpeeds.length >= 2 &&
+    nonZeroSpeeds[0] > nonZeroSpeeds[nonZeroSpeeds.length - 1] * 1.3;
 
   let consecutiveAbsence = 0;
   for (const session of mySessions ?? []) {

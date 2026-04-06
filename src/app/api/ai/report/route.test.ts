@@ -292,7 +292,7 @@ describe("POST /api/ai/report", () => {
     });
     setMockClient(mockSupabase);
 
-    const res = await POST(makePostRequest({ sessionId: VALID_SESSION_ID }));
+    const res = await POST(makePostRequest({ sessionId: VALID_SESSION_ID, studentId: VALID_STUDENT_ID }));
     expect(res.status).toBe(403);
   });
 

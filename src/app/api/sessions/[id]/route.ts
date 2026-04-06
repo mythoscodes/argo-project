@@ -92,6 +92,35 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
   if (anonymousMode !== undefined) updateData.anonymous_mode = anonymousMode;
 
   if (status !== undefined) {
+    // 세션 상태 전환 검증: draft→active→completed 만 허용
+    const { data: currentSession } = await supabase
+      .from("sessions")
+      .select("status")
+      .eq("id", id)
+      .eq("teacher_id", user.id)
+      .single();
+
+    if (!currentSession) {
+      return NextResponse.json(
+        { error: "세션을 찾을 수 없거나 권한이 없습니다." },
+        { status: 404 }
+      );
+    }
+
+    const allowedTransitions: Record<string, string[]> = {
+      draft: ["active"],
+      active: ["completed"],
+      completed: [],
+    };
+
+    const allowed = allowedTransitions[currentSession.status] ?? [];
+    if (!allowed.includes(status)) {
+      return NextResponse.json(
+        { error: `${currentSession.status} → ${status} 상태 전환은 허용되지 않습니다.` },
+        { status: 422 }
+      );
+    }
+
     updateData.status = status;
     if (status === "active") updateData.started_at = new Date().toISOString();
     if (status === "completed") updateData.ended_at = new Date().toISOString();
@@ -106,7 +135,10 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
     .single();
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json(
+      { error: error.code === "PGRST116" ? "세션을 찾을 수 없거나 권한이 없습니다." : error.message },
+      { status: error.code === "PGRST116" ? 404 : 500 }
+    );
   }
 
   return NextResponse.json({ data });
@@ -122,6 +154,21 @@ export async function DELETE(_request: NextRequest, context: RouteContext) {
   } = await supabase.auth.getUser();
   if (authError || !user) {
     return NextResponse.json({ error: "인증이 필요합니다" }, { status: 401 });
+  }
+
+  // 세션 존재 + 소유권 확인
+  const { data: session } = await supabase
+    .from("sessions")
+    .select("id")
+    .eq("id", id)
+    .eq("teacher_id", user.id)
+    .maybeSingle();
+
+  if (!session) {
+    return NextResponse.json(
+      { error: "세션을 찾을 수 없거나 권한이 없습니다." },
+      { status: 404 }
+    );
   }
 
   const { error } = await supabase

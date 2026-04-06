@@ -55,7 +55,8 @@ async function callQuizGeneration(
     }),
   });
 
-  return output!.questions;
+  if (!output) throw new Error("AI 응답이 스키마에 맞지 않습니다.");
+  return output.questions;
 }
 
 export async function POST(req: NextRequest) {

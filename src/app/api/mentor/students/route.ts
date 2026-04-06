@@ -178,9 +178,10 @@ export async function GET() {
       return sum / sessionResps.length;
     });
 
+    const nonZeroSpeeds = sessionAvgSpeed.filter((s) => s > 0);
     const speedIncreasing =
-      sessionAvgSpeed.length >= 2 &&
-      sessionAvgSpeed[0] > sessionAvgSpeed[sessionAvgSpeed.length - 1] * 1.3;
+      nonZeroSpeeds.length >= 2 &&
+      nonZeroSpeeds[0] > nonZeroSpeeds[nonZeroSpeeds.length - 1] * 1.3;
 
     const speedSignal: RiskSignal = {
       type: "speed",

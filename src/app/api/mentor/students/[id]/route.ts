@@ -177,9 +177,10 @@ export async function GET(
   const recentSpeeds = sessionAccuracyHistory
     .slice(0, 3)
     .map((s) => s.avgResponseTimeMs);
+  const nonZeroSpeeds = recentSpeeds.filter((s) => s > 0);
   const speedTriggered =
-    recentSpeeds.length >= 2 &&
-    recentSpeeds[0] > recentSpeeds[recentSpeeds.length - 1] * 1.3;
+    nonZeroSpeeds.length >= 2 &&
+    nonZeroSpeeds[0] > nonZeroSpeeds[nonZeroSpeeds.length - 1] * 1.3;
 
   // 연속 미참여
   let consecutiveAbsence = 0;

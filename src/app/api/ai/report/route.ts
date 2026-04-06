@@ -50,7 +50,8 @@ async function callReportGeneration(params: {
     prompt: buildReportUserPrompt(params),
   });
 
-  return output!;
+  if (!output) throw new Error("AI 응답이 스키마에 맞지 않습니다.");
+  return output;
 }
 
 type ReportResult =
@@ -136,10 +137,15 @@ export async function POST(req: NextRequest) {
 
   const isTeacher = ["owner", "teacher"].includes(profile.role);
 
-  // 수강생은 본인 리포트만 생성 가능
-  const targetStudentId = isTeacher
-    ? (requestedStudentId ?? user.id)
-    : user.id;
+  // 강사는 studentId 필수, 수강생은 본인 리포트만 생성 가능
+  if (isTeacher && !requestedStudentId) {
+    return NextResponse.json(
+      { error: "강사는 studentId를 지정해야 합니다." },
+      { status: 400 }
+    );
+  }
+
+  const targetStudentId = isTeacher ? requestedStudentId! : user.id;
 
   // 세션 정보 조회
   const { data: session, error: sessionError } = await supabase

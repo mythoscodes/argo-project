@@ -52,7 +52,8 @@ async function callCoachingGeneration(params: {
     prompt: buildCoachingUserPrompt(params),
   });
 
-  return output!;
+  if (!output) throw new Error("AI 응답이 스키마에 맞지 않습니다.");
+  return output;
 }
 
 type CoachingResult =
@@ -175,7 +176,7 @@ export async function POST(req: NextRequest) {
     .from("analysis_results")
     .select("understanding_scores")
     .eq("session_id", sessionId)
-    .eq("analysis_type", "understanding")
+    .eq("analysis_type", "realtime")
     .order("created_at", { ascending: false })
     .limit(1)
     .maybeSingle();
