@@ -1,0 +1,128 @@
+# ============================================
+# Argos .gitignore
+# 하네스 설정(.claude/, CLAUDE.md, rules/)은
+# 반드시 Git에 포함되어야 합니다 — 여기에 넣지 마세요!
+# ============================================
+
+# === Dependencies ===
+node_modules/
+.pnp
+.pnp.js
+.pnp.cjs
+.yarn/install-state.gz
+
+# === Next.js ===
+.next/
+out/
+build/
+next-env.d.ts
+
+# === Environment (비밀 키) ===
+.env
+.env.local
+.env.*.local
+.env.development.local
+.env.test.local
+.env.production.local
+# 주의: .env.example은 Git에 포함 (템플릿)
+
+# === Vercel ===
+.vercel
+
+# === Supabase ===
+supabase/.temp/
+supabase/.branches/
+
+# === IDE — VSCode ===
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
+!.vscode/launch.json
+*.code-workspace
+
+# === IDE — JetBrains (IntelliJ, WebStorm 등) ===
+.idea/*
+!.idea/codeStyles/
+!.idea/inspectionProfiles/
+*.iml
+*.iws
+*.ipr
+out/
+
+# === IDE — Vim/Neovim ===
+*.swp
+*.swo
+*.swn
+*~
+.netrwhist
+
+# === IDE — Sublime Text ===
+*.sublime-project
+*.sublime-workspace
+
+# === OS — macOS ===
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+.Spotlight-V100
+.Trashes
+Icon?
+
+# === OS — Windows ===
+Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+ehthumbs_vista.db
+Desktop.ini
+$RECYCLE.BIN/
+*.lnk
+
+# === OS — Linux ===
+*~
+.directory
+.Trash-*
+
+# === Node.js ===
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+.npm
+.eslintcache
+.node_repl_history
+*.tgz
+
+# === TypeScript ===
+*.tsbuildinfo
+tsconfig.tsbuildinfo
+
+# === Testing ===
+coverage/
+.nyc_output/
+playwright-report/
+test-results/
+
+# === Build/Bundle ===
+dist/
+.turbo
+.cache
+
+# === Misc ===
+*.log
+*.pid
+*.seed
+*.pid.lock
+.lock-wip
+
+# ============================================
+# 아래 항목은 반드시 Git에 포함 (gitignore 하지 않음)
+# ============================================
+# CLAUDE.md                    — 프로젝트 절대 규칙
+# .claude/settings.json        — 권한/플러그인/MCP 설정
+# .claude/agents/*.md          — 커스텀 에이전트 정의
+# .claude/commands/*.md        — 커스텀 슬래시 커맨드
+# rules/*.md                   — 세부 개발 규칙
+# .env.example                 — 환경변수 템플릿
+# docs/*.md                    — 기획서/가이드
