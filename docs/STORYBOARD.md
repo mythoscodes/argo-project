@@ -203,18 +203,150 @@ GET /api/ai/analysis?academy_id={id}
 
 ---
 
-## 5. 화면 전환 전체 흐름
+## 5. 멘토 뷰 (F9 — 이탈 방지)
+
+> 포지셔닝: **"강사는 오늘을 본다. 원장은 어제를 본다. 멘토는 내일을 막는다."**
+> 멘토(학습 상담사)는 수업을 직접 하지 않지만, 수강생의 이탈 위험을 선제적으로 감지하고 상담으로 개입합니다.
+> 강사 계정으로 접근 가능 (별도 role 불필요, instructor role 재활용)
+
+### 담당 수강생 목록 (`/mentor`)
+화면 목적: 오늘 누구에게 먼저 연락해야 할지 — AI 이탈 레이더 기반 우선순위 표시
+
+- Alert Banner: "오늘 상담 필요 N명" (이탈 위험 HIGH 수강생 수)
+- Card List: 담당 수강생 카드 (이탈 위험도순 기본 정렬)
+  - 각 카드: 이름 / 이탈 위험 스코어 Badge (위험🔴 / 주의🟡 / 양호🟢) / 3-signal 요약 한 줄
+  - 3-signal: ① 최근 3세션 정답률 < 40% ② 응답 속도 상승 추세 ③ 세션 미참여 연속 2회+
+  - 3개 중 2개 이상 해당 시 "위험🔴", 1개 해당 시 "주의🟡"
+- Filter Tabs: 위험도별 / 과정별
+- 모바일: 스와이프 카드, 한 줄당 카드 1개
+
+```
+GET /api/mentor/students          (담당 수강생 + 이탈 위험 스코어)
+```
+
+흐름: 강사 뷰 → 멘토 탭 진입 → **담당 수강생 목록** → 카드 탭 → 수강생 상세
+
+---
+
+### 수강생 상세 (`/mentor/students/[id]`)
+화면 목적: 해당 수강생의 학습 전체 흐름 파악 + AI 상담 브리핑 + 상담 기록 관리
+
+#### 레이아웃 (4개 섹션)
+
+**① AI 이탈 예측 카드 (상단)**
+- 이탈 위험 스코어 Badge (대형)
+- 3-signal 각각 시각화: 정답률 미니 스파크라인 / 응답 속도 추세 화살표 / 출석 현황 도트
+- Button: "AI 상담 브리핑 생성" → 대화 포인트 3가지 + 약점 분석 + 권장 상담 전략 + **내부 강의 추천**
+  - 내부 강의 추천: 수강생 약점 토픽과 `courses.topics` 매칭 → "이 수강생에게 적합한 내부 강의 1~2개" 추천
+  - 예시: "추천 강의: Spring Data JPA 심화 (화/목 14:00, 박강사) — 약점 토픽 3개 중 2개 커버"
+
+```
+POST /api/ai/mentor-briefing     (AI 상담 브리핑 생성 — F7 프롬프트 재활용, courses 컨텍스트 포함)
+```
+
+**② 학습 추이 차트 (중단 좌)**
+- Recharts LineChart: 최근 5세션 정답률 추이 (세션별 평균)
+- Recharts RadarChart: 토픽별 이해도 (약점 개념 6축)
+- 데이터 출처: responses (정답률), analysis_results (약점 토픽)
+
+```
+GET /api/mentor/students/[id]     (수강생 상세 데이터)
+```
+
+**③ 약점 토픽 태그 (중단 우)**
+- Tag List: AI가 추출한 취약 개념 (예: "Spring MVC", "예외처리", "JPA N+1")
+- 각 태그에 이해도 % 표시
+- 데이터 출처: student_reports.weak_topics / analysis_results
+
+**④ 상담 기록 타임라인 (하단)**
+- Timeline: 최신순 상담 기록 (날짜 + 유형 Badge + 한줄 요약)
+- FAB Button: "상담 기록 추가" → 슬라이드업 모달
+  - 유형 Select: 학습부진 / 진로 / 출결 / 기타
+  - 내용 Textarea: 자유 형식 메모
+  - DatePicker: 다음 상담 예정일
+  - Button: 저장
+
+```
+GET  /api/mentor/consultations?student_id={id}  (상담 기록 조회)
+POST /api/mentor/consultations                   (상담 기록 저장)
+```
+
+흐름: 담당 수강생 목록 → **수강생 상세** → AI 브리핑 확인 → 상담 기록 추가 → 목록 복귀
+모바일 대응: 섹션을 아코디언으로 접기/펼치기, 상담 기록 입력은 풀스크린 모달
+
+---
+
+### 멘토 뷰 — 원장 뷰 차별점
+
+| | 원장 뷰 | 멘토 뷰 |
+|---|---|---|
+| **관심 단위** | 아카데미 전체 | 개별 수강생 1:1 |
+| **시간축** | 과거 집계 (어제까지) | 미래 예측 (내일을 막는다) |
+| **핵심 지표** | 과정별 평균 이해도, 강사별 품질, 수료율 | 개인 정답률 추이, 이탈 위험 3-signal, 상담 이력 |
+| **핵심 액션** | 전략적 의사결정 (읽기 전용) | 오늘 연락할 수강생 파악, 상담 기록 작성 |
+| **AI 활용** | 경영 분석 | 상담 브리핑 자동생성, 이탈 위험 예측 |
+
+### 킬러 피처
+
+1. **AI 이탈 레이더**: 3-signal composite (정답률 + 응답 속도 + 출석)로 이탈 위험 자동 산출. 규칙 기반으로 AI 호출 없이 안정적 동작
+2. **AI 상담 브리핑 자동생성**: 수강생 클릭 → "오늘 상담 대화 포인트 3가지" + **내부 강의 추천** 즉시 생성. 기존 F7 리포트 프롬프트 재활용, Gemini Flash로 구현
+3. **AI 내부 강의 추천**: 수강생 약점 토픽 × 내부 강의 카탈로그(`courses`) 매칭 → 적합한 강의 1~2개 추천. 상담 브리핑에 통합되어 별도 API 불필요
+
+### 데모 시드 데이터 (3-persona)
+
+| 수강생 | 정답률 패턴 | 출석 | 응답속도 | 이탈 판정 |
+|--------|------------|------|---------|---------|
+| 김민준 | 80→60→35% (급락) | 1회 미참석 | 증가 | 위험🔴 |
+| 이지수 | 55→60→58% (정체) | 전출석 | 보통 | 주의🟡 |
+| 박서연 | 75→80→85% (향상) | 전출석 | 감소 | 양호🟢 |
+
+### 신규 DB 테이블
+
+```sql
+-- 상담 기록
+consultation_notes (
+  id uuid PRIMARY KEY,
+  instructor_id uuid REFERENCES profiles(id),  -- 멘토(강사) ID
+  student_id uuid REFERENCES profiles(id),
+  academy_id uuid REFERENCES academies(id),
+  type text CHECK (type IN ('학습부진', '진로', '출결', '기타')),
+  content text,
+  next_consultation_date date,
+  created_at timestamptz DEFAULT now()
+)
+-- RLS: instructor_id = auth.uid() 기반, 기존 instructor RLS 패턴 재활용
+
+-- 내부 강의 카탈로그 (AI 강의 추천용)
+courses (
+  id uuid PRIMARY KEY,
+  academy_id uuid REFERENCES academies(id),
+  title text,                -- "Spring Data JPA 심화"
+  category text,             -- "Spring" / "React" / "Python" / "보안" / "네트워크"
+  topics text[],             -- ["JPA", "N+1", "영속성 컨텍스트"]
+  instructor_name text,
+  schedule text,             -- "매주 화/목 14:00"
+  is_active boolean DEFAULT true,
+  created_at timestamptz DEFAULT now()
+)
+-- RLS: academy_id 기반 읽기 허용
+-- 시드 데이터: KIT 실제 과정 기반 5~10개 강의 사전 등록
+```
+
+---
+
+## 6. 화면 전환 전체 흐름
 
 ```
 [로그인]
    ├─ 강사 → [세션 목록] → [세션 생성] → [수업 대시보드 🔴] → [리포트 목록]
+   │                                                            └─ [멘토: 담당 수강생 목록] → [수강생 상세]
    ├─ 수강생 → [세션 참여] → [퀴즈 응답 🔴] → [결과 확인] → [학습 리포트]
    └─ 원장 → [경영 대시보드]
 ```
 
 ---
 
-## 6. 실시간 구독 요약
+## 7. 실시간 구독 요약
 
 | 화면 | 구독 테이블 | 이벤트 |
 |------|------------|--------|
