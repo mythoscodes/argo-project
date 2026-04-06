@@ -11,3 +11,6 @@ export const DEFAULT_QUIZ_COUNT = 3;
 
 // 세션 설정
 export const SESSION_CODE_LENGTH = 6;
+
+// 이해도 분석 설정
+export const WEAK_TOPIC_THRESHOLD = 60; // 정답률 60% 이하를 약점 토픽으로 분류
