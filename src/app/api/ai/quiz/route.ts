@@ -140,35 +140,13 @@ export async function POST(req: NextRequest) {
   const roundNumber = Math.floor((existingQuizCount ?? 0) / params.count) + 1;
 
   // AI 퀴즈 생성 (실패 시 1회 재시도)
-  let questions: GeneratedQuizQuestion[];
-  try {
-    questions = await callQuizGeneration(params);
-  } catch (firstError) {
-    try {
-      questions = await callQuizGeneration(params);
-    } catch (retryError) {
-      const errorMessage =
-        retryError instanceof Error ? retryError.message : "알 수 없는 오류";
-      return NextResponse.json(
-        {
-          error: `AI 퀴즈 생성에 실패했습니다. (재시도 ${AI_MAX_RETRY_COUNT}회 초과): ${errorMessage}`,
-        },
-        { status: 502 }
-      );
-    }
-    // firstError가 파싱/검증 오류가 아니면 바로 실패 처리
-    if (!isParseOrValidationError(firstError)) {
-      const errorMessage =
-        firstError instanceof Error ? firstError.message : "알 수 없는 오류";
-      return NextResponse.json(
-        { error: `AI 퀴즈 생성에 실패했습니다: ${errorMessage}` },
-        { status: 502 }
-      );
-    }
+  const questions = await generateQuizzesWithRetry(params);
+  if (!questions.success) {
+    return NextResponse.json({ error: questions.error }, { status: 502 });
   }
 
   // quizzes 테이블에 저장
-  const quizInserts = questions!.map((question, index) => ({
+  const quizInserts = questions.data.map((question, index) => ({
     session_id: params.sessionId,
     question_text: question.question_text,
     question_type: question.question_type,
@@ -197,12 +175,28 @@ export async function POST(req: NextRequest) {
   return NextResponse.json({ data: savedQuizzes }, { status: 201 });
 }
 
-function isParseOrValidationError(error: unknown): boolean {
-  if (error instanceof SyntaxError) return true;
-  return (
-    typeof error === "object" &&
-    error !== null &&
-    "issues" in error &&
-    Array.isArray((error as { issues: unknown }).issues)
-  );
+type QuizGenerationResult =
+  | { success: true; data: GeneratedQuizQuestion[] }
+  | { success: false; error: string };
+
+async function generateQuizzesWithRetry(
+  params: QuizRequest
+): Promise<QuizGenerationResult> {
+  try {
+    const data = await callQuizGeneration(params);
+    return { success: true, data };
+  } catch {
+    // 1회 재시도
+    try {
+      const data = await callQuizGeneration(params);
+      return { success: true, data };
+    } catch (retryError) {
+      const errorMessage =
+        retryError instanceof Error ? retryError.message : "알 수 없는 오류";
+      return {
+        success: false,
+        error: `AI 퀴즈 생성에 실패했습니다. (재시도 ${AI_MAX_RETRY_COUNT}회 초과): ${errorMessage}`,
+      };
+    }
+  }
 }
