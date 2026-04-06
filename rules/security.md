@@ -6,13 +6,13 @@
 ```
 GOOGLE_GENERATIVE_AI_API_KEY   # Gemini API
 ANTHROPIC_API_KEY              # Claude API (옵션 B/C)
-SUPABASE_SERVICE_ROLE_KEY      # Supabase 관리자
+SUPABASE_SECRET_KEY            # Supabase Secret Key (서버 전용, RLS 바이패스)
 ```
 
 ### 클라이언트 허용 (NEXT_PUBLIC_ 접두사 사용)
 ```
 NEXT_PUBLIC_SUPABASE_URL       # Supabase 프로젝트 URL
-NEXT_PUBLIC_SUPABASE_ANON_KEY  # Supabase 익명 키 (RLS로 보호)
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY  # Supabase Publishable Key (RLS로 보호)
 NEXT_PUBLIC_APP_URL            # 앱 URL
 ```
 

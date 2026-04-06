@@ -12,7 +12,7 @@ const ENV_KEY_MAP: Record<ModelPurpose, string> = {
 };
 
 const MODEL_ID_MAP = {
-  "gemini-3-flash": "gemini-3.0-flash",
+  "gemini-3-flash": "gemini-2.5-flash",
   "claude-sonnet": "claude-sonnet-4-6",
 } as const;
 

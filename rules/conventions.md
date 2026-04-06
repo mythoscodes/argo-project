@@ -21,7 +21,7 @@
 | 상수 | `UPPER_SNAKE_CASE` | `MAX_QUIZ_COUNT`, `DEFAULT_TEMPERATURE` |
 | 타입/인터페이스 | `PascalCase` | `QuizResponse`, `SessionData` |
 | Enum 값 | `snake_case` (DB) / `UPPER_SNAKE_CASE` (코드) | DB: `'code_output'`, 코드: `QuestionType.CODE_OUTPUT` |
-| 환경변수 | `UPPER_SNAKE_CASE` | `AI_MODEL`, `SUPABASE_SERVICE_ROLE_KEY` |
+| 환경변수 | `UPPER_SNAKE_CASE` | `AI_MODEL`, `SUPABASE_SECRET_KEY` |
 
 ### 금지 네이밍
 ```typescript

@@ -28,12 +28,12 @@
 ## 절대 규칙 (위반 시 즉시 수정)
 
 ### 보안
-1. API Key(`GOOGLE_GENERATIVE_AI_API_KEY`, `ANTHROPIC_API_KEY`, `SUPABASE_SERVICE_ROLE_KEY`)는 **서버사이드 전용**
-2. `NEXT_PUBLIC_` 접두사는 `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `APP_URL`에만 허용 — 다른 키에 절대 사용 금지
+1. API Key(`GOOGLE_GENERATIVE_AI_API_KEY`, `ANTHROPIC_API_KEY`, `SUPABASE_SECRET_KEY`)는 **서버사이드 전용**
+2. `NEXT_PUBLIC_` 접두사는 `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY`, `APP_URL`에만 허용 — 다른 키에 절대 사용 금지
 3. `.env.local`은 `.gitignore`에 반드시 포함 — 커밋 전 `git diff --cached`로 확인
 4. Supabase RLS **필수 활성화** — 새 테이블 생성 시 RLS 정책을 같은 마이그레이션에 포함
 5. SQL 쿼리에 사용자 입력 직접 삽입 금지 — 반드시 Supabase 파라미터 바인딩 사용
-6. 클라이언트 코드에서 `SUPABASE_SERVICE_ROLE_KEY` 참조 시 빌드 에러로 간주
+6. 클라이언트 코드에서 `SUPABASE_SECRET_KEY` 참조 시 빌드 에러로 간주
 
 ### 아키텍처
 7. **프론트엔드는 다른 팀원이 담당** — `src/components/`, `src/app/(페이지)/page.tsx`의 UI는 건드리지 않음. 백엔드/AI/DB에 집중
