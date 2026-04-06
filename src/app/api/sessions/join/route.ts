@@ -38,6 +38,20 @@ export async function POST(request: NextRequest) {
 
   const { joinCode } = parsed.data;
 
+  // 수강생 역할 확인
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("role")
+    .eq("id", user.id)
+    .single();
+
+  if (!profile || profile.role !== "student") {
+    return NextResponse.json(
+      { error: "수강생만 세션에 참여할 수 있습니다." },
+      { status: 403 }
+    );
+  }
+
   const { data: session } = await supabase
     .from("sessions")
     .select("id, status, title")

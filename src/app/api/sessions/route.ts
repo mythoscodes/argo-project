@@ -40,12 +40,55 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "인증이 필요합니다" }, { status: 401 });
   }
 
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("role, academy_id")
+    .eq("id", user.id)
+    .single();
+
+  if (!profile) {
+    return NextResponse.json({ error: "프로필을 찾을 수 없습니다." }, { status: 403 });
+  }
+
   const { searchParams } = request.nextUrl;
   const status = searchParams.get("status");
+  const isTeacher = ["owner", "teacher"].includes(profile.role);
+
+  if (isTeacher) {
+    // 강사/원장: 본인 세션만 (join_code 포함)
+    let query = supabase
+      .from("sessions")
+      .select("*, session_participants(count)")
+      .eq("teacher_id", user.id)
+      .order("created_at", { ascending: false });
+
+    if (status) {
+      query = query.eq("status", status);
+    }
+
+    const { data, error } = await query;
+    if (error) {
+      return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+    return NextResponse.json({ data });
+  }
+
+  // 수강생: 참여한 세션만 (join_code 제외)
+  const { data: participations } = await supabase
+    .from("session_participants")
+    .select("session_id")
+    .eq("student_id", user.id);
+
+  const sessionIds = (participations ?? []).map((p) => p.session_id);
+
+  if (sessionIds.length === 0) {
+    return NextResponse.json({ data: [] });
+  }
 
   let query = supabase
     .from("sessions")
-    .select("*, session_participants(count)")
+    .select("id, title, subject, course_category, status, created_at, started_at, ended_at, session_participants(count)")
+    .in("id", sessionIds)
     .order("created_at", { ascending: false });
 
   if (status) {
@@ -53,11 +96,9 @@ export async function GET(request: NextRequest) {
   }
 
   const { data, error } = await query;
-
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
-
   return NextResponse.json({ data });
 }
 

@@ -97,7 +97,7 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const isCorrect = quiz.correct_answer === selectedAnswer;
+  const isCorrect = quiz.correct_answer.trim() === selectedAnswer.trim();
 
   const { data: responseData, error: insertError } = await supabase
     .from("responses")
