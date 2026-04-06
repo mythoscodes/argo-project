@@ -35,7 +35,8 @@ const QuizRequestSchema = z.object({
 type QuizRequest = z.infer<typeof QuizRequestSchema>;
 
 async function callQuizGeneration(
-  params: QuizRequest
+  params: QuizRequest,
+  existingQuestions?: string[]
 ): Promise<GeneratedQuizQuestion[]> {
   const model = getModel("quiz");
 
@@ -50,6 +51,7 @@ async function callQuizGeneration(
       topic: params.topic,
       count: params.count,
       difficulty: params.difficulty,
+      existingQuestions,
     }),
   });
 
@@ -131,16 +133,28 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // 현재 라운드 번호 계산
-  const { count: existingQuizCount } = await supabase
+  // 현재 라운드 번호 계산: 기존 최대 round_number + 1
+  const { data: maxRoundData } = await supabase
     .from("quizzes")
-    .select("*", { count: "exact", head: true })
-    .eq("session_id", params.sessionId);
+    .select("round_number")
+    .eq("session_id", params.sessionId)
+    .order("round_number", { ascending: false })
+    .limit(1)
+    .maybeSingle();
 
-  const roundNumber = Math.floor((existingQuizCount ?? 0) / params.count) + 1;
+  const roundNumber = (maxRoundData?.round_number ?? 0) + 1;
+
+  // 동일 토픽의 기존 문제 조회 (재퀴즈 시 중복 방지)
+  const { data: existingTopicQuizzes } = await supabase
+    .from("quizzes")
+    .select("question_text")
+    .eq("session_id", params.sessionId)
+    .eq("topic_tag", params.topic);
+
+  const existingQuestions = existingTopicQuizzes?.map((q) => q.question_text) ?? [];
 
   // AI 퀴즈 생성 (실패 시 1회 재시도)
-  const questions = await generateQuizzesWithRetry(params);
+  const questions = await generateQuizzesWithRetry(params, existingQuestions);
   if (!questions.success) {
     return NextResponse.json({ error: questions.error }, { status: 502 });
   }
@@ -180,15 +194,16 @@ type QuizGenerationResult =
   | { success: false; error: string };
 
 async function generateQuizzesWithRetry(
-  params: QuizRequest
+  params: QuizRequest,
+  existingQuestions: string[]
 ): Promise<QuizGenerationResult> {
   try {
-    const data = await callQuizGeneration(params);
+    const data = await callQuizGeneration(params, existingQuestions);
     return { success: true, data };
   } catch {
     // 1회 재시도
     try {
-      const data = await callQuizGeneration(params);
+      const data = await callQuizGeneration(params, existingQuestions);
       return { success: true, data };
     } catch (retryError) {
       const errorMessage =

@@ -6,6 +6,7 @@ interface QuizPromptParams {
   topic: string;
   count: number;
   difficulty: "easy" | "medium" | "hard" | "mixed";
+  existingQuestions?: string[];
 }
 
 export function buildQuizSystemPrompt(): string {
@@ -39,7 +40,7 @@ export function buildQuizSystemPrompt(): string {
 }
 
 export function buildQuizUserPrompt(params: QuizPromptParams): string {
-  const { subject, topic, count, difficulty } = params;
+  const { subject, topic, count, difficulty, existingQuestions } = params;
 
   const difficultyGuide =
     difficulty === "mixed"
@@ -48,11 +49,16 @@ export function buildQuizUserPrompt(params: QuizPromptParams): string {
 
   const fewShotExample = getFewShotExample(subject);
 
+  const avoidSection =
+    existingQuestions && existingQuestions.length > 0
+      ? `\n이미 출제된 문제 (절대 중복 금지):\n${existingQuestions.map((q, i) => `${i + 1}. ${q}`).join("\n")}\n`
+      : "";
+
   return `과목: ${subject}
 주제: ${topic}
 문제 수: ${count}개
 난이도: ${difficultyGuide}
-
+${avoidSection}
 다음과 같은 유형으로 코드 중심 문제를 포함하여 생성하세요:
 - code_output: "이 코드의 실행 결과는?"
 - find_bug: "이 코드에서 버그를 찾아라"
