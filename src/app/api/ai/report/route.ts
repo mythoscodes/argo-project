@@ -99,7 +99,7 @@ export async function POST(req: NextRequest) {
 
   const { data: profile, error: profileError } = await supabase
     .from("profiles")
-    .select("role, display_name, academy_id")
+    .select("role, academy_id")
     .eq("id", user.id)
     .single();
 
