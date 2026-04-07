@@ -7,6 +7,7 @@ import {
   RISK_ABSENCE_THRESHOLD,
   RISK_SIGNAL_COUNT_FOR_HIGH,
   WEAK_TOPIC_THRESHOLD,
+  RISK_SPEED_INCREASE_RATIO,
 } from "@/lib/constants";
 
 const ParamsSchema = z.object({
@@ -180,7 +181,7 @@ export async function GET(
   const nonZeroSpeeds = recentSpeeds.filter((s) => s > 0);
   const speedTriggered =
     nonZeroSpeeds.length >= 2 &&
-    nonZeroSpeeds[0] > nonZeroSpeeds[nonZeroSpeeds.length - 1] * 1.3;
+    nonZeroSpeeds[0] > nonZeroSpeeds[nonZeroSpeeds.length - 1] * RISK_SPEED_INCREASE_RATIO;
 
   // 연속 미참여
   let consecutiveAbsence = 0;

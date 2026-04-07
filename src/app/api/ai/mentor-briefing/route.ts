@@ -19,6 +19,7 @@ import {
   RISK_ACCURACY_SESSION_COUNT,
   RISK_ABSENCE_THRESHOLD,
   RISK_SIGNAL_COUNT_FOR_HIGH,
+  RISK_SPEED_INCREASE_RATIO,
 } from "@/lib/constants";
 
 const PostRequestSchema = z.object({
@@ -254,7 +255,7 @@ export async function POST(req: NextRequest) {
   const nonZeroSpeeds = recentSpeeds.filter((s) => s > 0);
   const speedTriggered =
     nonZeroSpeeds.length >= 2 &&
-    nonZeroSpeeds[0] > nonZeroSpeeds[nonZeroSpeeds.length - 1] * 1.3;
+    nonZeroSpeeds[0] > nonZeroSpeeds[nonZeroSpeeds.length - 1] * RISK_SPEED_INCREASE_RATIO;
 
   let consecutiveAbsence = 0;
   for (const session of mySessions ?? []) {
