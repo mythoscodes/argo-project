@@ -37,17 +37,33 @@ export async function GET(_request: NextRequest, context: RouteContext) {
     return NextResponse.json({ error: "인증이 필요합니다" }, { status: 401 });
   }
 
-  const { data, error } = await supabase
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("role")
+    .eq("id", user.id)
+    .single();
+
+  const isTeacher = profile && ["owner", "teacher"].includes(profile.role);
+
+  const { data: session, error } = await supabase
     .from("sessions")
     .select("*, session_participants(student_id, joined_at)")
     .eq("id", id)
     .single();
 
-  if (error) {
+  if (error || !session) {
     return NextResponse.json({ error: "세션을 찾을 수 없습니다" }, { status: 404 });
   }
 
-  return NextResponse.json({ data });
+  // 수강생에게는 join_code 미노출
+  if (!isTeacher) {
+    const safeSession = Object.fromEntries(
+      Object.entries(session as Record<string, unknown>).filter(([key]) => key !== "join_code")
+    );
+    return NextResponse.json({ data: safeSession });
+  }
+
+  return NextResponse.json({ data: session });
 }
 
 export async function PATCH(request: NextRequest, context: RouteContext) {
