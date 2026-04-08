@@ -21,6 +21,22 @@ export function useRealtimeResponses(
   useEffect(() => {
     if (!sessionId) return;
 
+    // 초기 데이터 로드
+    async function loadExisting() {
+      const { data } = await supabase.current
+        .from("responses")
+        .select("*")
+        .eq("session_id", sessionId)
+        .order("created_at", { ascending: true });
+
+      if (data) {
+        setResponses(data);
+      }
+    }
+
+    loadExisting();
+
+    // 실시간 구독
     const channel = supabase.current
       .channel(`responses:session_id=eq.${sessionId}`)
       .on(
@@ -32,7 +48,12 @@ export function useRealtimeResponses(
           filter: `session_id=eq.${sessionId}`,
         },
         (payload) => {
-          setResponses((prev) => [...prev, payload.new as ResponseRow]);
+          setResponses((prev) => {
+            // 중복 방지
+            const exists = prev.some((r) => r.id === (payload.new as ResponseRow).id);
+            if (exists) return prev;
+            return [...prev, payload.new as ResponseRow];
+          });
         }
       )
       .subscribe((status) => {
