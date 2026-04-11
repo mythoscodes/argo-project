@@ -32,16 +32,16 @@
 
 ---
 
-### A-1. [Critical] AI 스텁 전용 모드 도입 — API-AI-010 flaky 근본 해소
+### A-1. [Optional] AI 스텁 전용 모드 도입 — 미래 안전 대비
 
-**배경**: Round 2.5까지 잔존한 API-AI-010 flaky 1건. Gemini cold start 외부 의존성으로 인한 타이밍 이슈. Argos 코드 버그 아님. critic-2 T8 판정 기준 Cycle 3 이관 확정.
+**배경**: Round 2.5 final에서 API-AI-010 flaky가 ISN beforeAll fresh 로그인 패턴으로 사라짐. qa fix로 teacher 세션 무효화 방지 → Gemini cold start hit 우연 제거됨. **현재 0 flaky 달성으로 필수 아님.**
 
-**구현 방향**:
+**Cycle 3 도입 권고 (Optional)**:
 - 환경변수 `E2E_STUB_MODE=true` 시 AI 엔드포인트 자동 스텁
-- 대상: `api/ai/quiz`, `api/ai/analysis`, `api/ai/coaching`, `api/ai/report`, `api/ai/mentor-briefing`
-- Gemini 외부 호출 없이 고정 응답 반환 → flaky 완전 제거
+- Gemini 외부 의존성 원천 차단 → CI 환경에서 장기적 안정성 보장
+- 미래 cold start 문제 재발 방지용 defense-in-depth
 
-**우선순위**: P1 (Cycle 3 E2E 안정화 트랙)  
+**우선순위**: Optional (Cycle 3 E2E 안정화 트랙 — 필요 시 도입)  
 **담당**: dev-2 + qa
 
 ---

@@ -117,7 +117,8 @@ critic-2의 T3 비평에서 9건 Critical 리스크 식별 → dev-2가 Cycle 2 
 |-------|--------|--------|-------|---------|----------|
 | 1 | 298 | 120 | — | 725 | 5.9분 |
 | 2 | 294 | 0 | 1 | 779 | 18.7분 |
-| 2.5 | 313 | 0 | **0** | 781 | **3.3분** |
+| 2.5 (631a29a) | 293 | 0 | 1 | 780 | 11.6분 |
+| **2.5 final** | **313** | **0** | **0** | **781** | **3.3분** |
 
 **migration 00008**: 원격 DB 적용 완료 (team-lead Supabase MCP 직접 실행). `pg_policies` 검증: `participants_select_same_academy` + `participants_insert_student_academy_active` 2개만 존재. **타이밍 메모**: critic-2의 "SELECT RLS로 이미 보호 → Cycle 3 이관 GO" 판단과 team-lead 원격 적용이 병행 발생. 양 판단 모두 정당, 결과적으로 defense-in-depth 자동 달성.
 
@@ -252,7 +253,7 @@ Cat-A(엔드포인트 없음), Cat-C(auth 상속), Cat-F(상태코드)는 spec �
 | **analyst-2** | 코드 전수 분석, 회귀 리스크 조사, screen/api/hook/lib/rls Wiki 47페이지, Round 1~2 분석 문서, Gotcha 3건 선제 발견 |
 | **critic-2** | N-1~N-9 Critical 발견(Cycle 1), Cat-E/Cat-A 사후 정정(Round 1), ISD-ERR-001 TC 본질 오진 정정(Round 2), **P6 블로커 승격 + publishable key 노출 논리 제시(Round 2.5)** — team-lead 초기 판정 반박 → 실제 취약점 해소, 라운드별 critique 문서 |
 | **dev-2** | mentor 유령 라우트 14파일 fix, migration 00007, /api/participants 구현, P0 Supabase 복구, lib-supabase 근본 수정 |
-| **qa** | TC 381→1024 확장 참여, Playwright 1143 자동화 전체 구축, Round 1~2 실행 + 결과 보고, Cat-C/D/F spec 자체 수정 |
+| **qa** | TC 381→1024 확장 참여, Playwright 1143 자동화 전체 구축, Round 1~2 실행 + 결과 보고, Cat-C/D/F spec 자체 수정, **ISD-ERR-001 API 레벨 검증 재설계 + ISN beforeAll fresh 로그인 패턴 → 0 flaky / 3.3분 달성** |
 | **team-lead** | 스프린트 중재, Wiki SCHEMA.md + test/process 페이지, 역할 배분, 주요 판단 최종 결정 |
 
 ---
