@@ -306,7 +306,7 @@ export default function SessionDashboardPage({ params }: { params: Promise<{ id:
           <CardContent>
             {session.join_code ? (
               <div className="flex items-center gap-3">
-                <span className="text-3xl font-mono font-bold tracking-widest text-primary">
+                <span data-testid="join-code" className="text-3xl font-mono font-bold tracking-widest text-primary">
                   {session.join_code}
                 </span>
                 <Button variant="ghost" size="icon" onClick={handleCopyCode}>
@@ -314,7 +314,7 @@ export default function SessionDashboardPage({ params }: { params: Promise<{ id:
                 </Button>
               </div>
             ) : (
-              <p className="text-muted-foreground text-sm">수업을 시작하면 코드가 발급됩니다</p>
+              <p data-testid="no-join-code-message" className="text-muted-foreground text-sm">수업을 시작하면 코드가 발급됩니다</p>
             )}
           </CardContent>
         </Card>

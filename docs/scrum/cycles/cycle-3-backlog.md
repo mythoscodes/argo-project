@@ -46,25 +46,29 @@
 
 ---
 
-### A-2. SKIP 780 구조적 해소 — Cycle 3 이관
+### A-2. SKIP 781 구조적 해소 — Cycle 3 이관
 
-**배경**: Round 2 최종 779 SKIP 잔존. Round 2.5(flaky fix)에서도 SKIP은 건드리지 않음. 전량 Cycle 3 이관.
+**배경**: Round 2.5 최종 781 SKIP 잔존. analyst-2 전수 조사(round-3-skip-analysis.md) 기반 확정 분류.
 
-**Round 2 확정 분류**:
+**확정 분류 (analyst-2 grep 기준)**:
 
-| 분류 | 건수 | Cycle 3 처리 |
-|------|------|------------|
-| WebSocket Realtime (SSN-RT 계열) | ~40 | Realtime 격리 CI 안정 확인 후 skip 해제 |
-| AI 응답 검증 | ~80 | AI 파이프라인 안정화 후 해제 |
-| mentor 통합 | ~60 | F9 구현 완료 후 해제 |
-| 대용량/부하 | ~30 | 별도 부하 테스트 환경 구축 후 해제 |
-| 기타 의도적 skip (F6~F9 미구현) | ~569 | 기능 구현 완료 후 단계적 해제 |
+| 분류 | 건수 | 유형 | Cycle 3 처리 |
+|------|------|------|------------|
+| 세션 생성 실패 cascade | ~186 | A | fixture 안정화 → Round 3.1~3.2 |
+| 인프라 불필요 (student-result/join, mentor-list, owner-dashboard 등) | ~251 | B | qa 테스트 코드 작성 → Round 3.3 우선 |
+| AI 스텁 의존 | ~186 | B | A-1 완료 후 → Round 3.3 |
+| Realtime 의존 (SSN-RT, student-session 79건 포함) | ~87 | B | B-3 CI 완료 후 → Round 3.3 |
+| 기타 의도적 skip | ~72 | B | 기능 구현 후 단계적 해제 |
+
+**유형 구분**:
+- **유형 A (cascade ~186건)**: fixture 안정화로 해제 가능 — Round 3.1~3.2 작업
+- **유형 B (플레이스홀더 ~595건)**: qa 테스트 코드 작성 필요 — Round 3.3 작업
 
 **해제 우선순위**:
-1. F6 피드백루프 구현 → 관련 skip ~100건 해제
-2. F7 리포트 구현 → 관련 skip ~80건 해제
-3. F8/F9 구현 → mentor/owner 관련 skip ~120건 해제
-4. Realtime CI 격리 안정화 → SSN-RT ~40건 해제
+1. Round 3.1~3.2: 유형 A cascade 해제 (~186건)
+2. Round 3.3: 인프라 불필요 우선 (~251건) → AI 스텁 의존 (~186건) → Realtime (~87건)
+
+**상세**: `docs/scrum/cycles/round-3-skip-analysis.md`
 
 ---
 

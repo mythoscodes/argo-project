@@ -113,19 +113,17 @@ test.describe('데모 플로우: 강사 세션 관리', () => {
         await page.waitForTimeout(2_000);
       });
 
-      await test.step('active 상태 확인 — 6자리 참여코드 노출 (ISD-UI-004)', async () => {
-        // 참여코드는 6자리 영숫자 (ABCDEFGHJKLMNPQRSTUVWXYZ23456789)
-        const pageContent = await page.content();
-        // 6자리 대문자 영숫자 패턴이 페이지에 존재해야 함
-        const hasJoinCode = /\b[A-Z0-9]{6}\b/.test(pageContent);
-        expect(hasJoinCode, '6자리 참여코드가 페이지에 표시되어야 한다').toBeTruthy();
+      await test.step('active 상태 확인 — join-code testid 노출 (ISD-UI-004)', async () => {
+        // data-testid="join-code" 는 join_code truthy 시에만 렌더 (active 전환 후 등장)
+        await expect(page.getByTestId('join-code')).toBeVisible({ timeout: 8_000 });
       });
     });
   });
 
-  // ISD-ERR-001: draft 세션 join_code가 API 응답에 null로 반환됨 (보안 속성 검증)
-  // UI 렌더링이 아닌 API 레벨에서 검증 — 서버 부하 시 UI 로딩 지연으로 인한 flaky 방지
-  test('draft 세션 API 응답에 join_code null 확인 (ISD-ERR-001)', async ({ page }) => {
+  // ISD-ERR-001: draft 세션 join_code 보안 검증 (API + UI 이중 레이어)
+  // 1차: API 레벨 — join_code=null 보장 (서버 사이드 보안, 항상 안정적)
+  // 2차: UI 레벨 — data-testid="join-code" DOM 부재 + data-testid="no-join-code-message" 노출
+  test('draft 세션 join_code 미노출 이중 검증 (ISD-ERR-001)', async ({ page }) => {
     let sessionId: string;
 
     await test.step('신규 draft 세션 생성', async () => {
@@ -146,13 +144,21 @@ test.describe('데모 플로우: 강사 세션 관리', () => {
       sessionId = session.id;
     });
 
-    await test.step('draft 세션 GET API — join_code가 null', async () => {
-      // draft 상태에서 join_code는 절대 노출되면 안 됨
-      // UI 렌더링 없이 API 응답 직접 검증 → 서버 부하와 무관하게 안정적
+    await test.step('1차: API — draft 세션 join_code=null 확인', async () => {
+      // 서버 사이드 보안 속성 직접 검증 — 서버 부하와 무관하게 안정적
       const getRes = await page.request.get(`/api/sessions/${sessionId}`);
       expect(getRes.status()).toBe(200);
       const { data } = await getRes.json();
       expect(data.join_code, 'draft 세션의 join_code는 null이어야 한다').toBeNull();
+    });
+
+    await test.step('2차: UI — join-code testid 부재 + no-join-code-message 노출', async () => {
+      // data-testid="join-code" 는 join_code truthy 시에만 DOM에 존재
+      // → draft 상태에서 count=0 확인 (not.toBeVisible 보다 정확)
+      await page.goto(`/instructor/sessions/${sessionId}`);
+      await page.waitForSelector('[data-testid="no-join-code-message"]', { state: 'visible', timeout: 20_000 });
+      await expect(page.getByTestId('join-code')).toHaveCount(0);
+      await expect(page.getByTestId('no-join-code-message')).toBeVisible();
     });
   });
 });

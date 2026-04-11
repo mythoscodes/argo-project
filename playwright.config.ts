@@ -1,5 +1,11 @@
 import { defineConfig } from '@playwright/test';
 
+/**
+ * E2E_STUB_MODE=true — AI 엔드포인트(/api/ai/**) 자동 스텁 모드
+ * Gemini cold start 없이 결정론적 응답 보장. CI 또는 로컬 빠른 실행 시 사용.
+ * 적용 방법: E2E_STUB_MODE=true npm run test:e2e
+ * 프로덕션 코드 변경 없음 — tests/e2e/fixtures/index.ts Playwright fixture 레벨 동작.
+ */
 export default defineConfig({
   globalSetup: './tests/e2e/global-setup.ts',
   testDir: './tests/e2e',
