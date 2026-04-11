@@ -4,7 +4,7 @@
  * 라우트: /instructor/sessions/new
  */
 import { test, expect } from '@playwright/test';
-import { AUTH_STATE } from '../fixtures/users';
+import { AUTH_STATE, TEST_USERS } from '../fixtures/users';
 import { stubAiRoutes } from '../fixtures/helpers';
 
 const BASE_URL = process.env.PLAYWRIGHT_BASE_URL ?? 'http://localhost:3000';
@@ -15,14 +15,21 @@ test.use({ storageState: AUTH_STATE.teacher });
 test.use({ timeout: 90_000 });
 
 test.describe('ISN: 강사 세션 생성 (/instructor/sessions/new)', () => {
-  // ISD 완전 종료 후 ISN이 시작되므로(playwright.config.ts project dependency) 별도 대기 불필요.
-  // warm-up 요청으로 Next.js 캐시 준비만 수행.
+  // ISD 실행 중 Supabase 토큰 리프레시로 teacher.json 세션이 무효화될 수 있음.
+  // beforeAll에서 fresh 로그인으로 teacher.json 재생성 → 401/redirect 방지.
   test.beforeAll(async ({ browser }) => {
-    const ctx = await browser.newContext({ storageState: AUTH_STATE.teacher });
+    const ctx = await browser.newContext();
     const page = await ctx.newPage();
     try {
-      await page.goto('/instructor/sessions/new', { waitUntil: 'domcontentloaded', timeout: 30_000 });
+      await page.goto(`${BASE_URL}/login`, { timeout: 30_000 });
+      await page.fill('#email', TEST_USERS.teacher.email);
+      await page.fill('#password', TEST_USERS.teacher.password);
+      await Promise.all([
+        page.waitForURL((url) => !url.pathname.includes('/login'), { timeout: 20_000 }),
+        page.click('button[type="submit"]'),
+      ]);
       await page.waitForLoadState('networkidle', { timeout: 10_000 }).catch(() => {});
+      await ctx.storageState({ path: AUTH_STATE.teacher });
     } finally { await ctx.close(); }
   });
 

@@ -123,8 +123,11 @@ test.describe('데모 플로우: 강사 세션 관리', () => {
     });
   });
 
-  // ISD-ERR-001: draft 세션 join_code가 DOM에 평문 노출되지 않음
-  test('draft 세션 페이지 DOM에 join_code 평문 없음 (ISD-ERR-001)', async ({ page, request }) => {
+  // ISD-ERR-001: draft 세션 join_code가 API 응답에 null로 반환됨 (보안 속성 검증)
+  // UI 렌더링이 아닌 API 레벨에서 검증 — 서버 부하 시 UI 로딩 지연으로 인한 flaky 방지
+  test('draft 세션 API 응답에 join_code null 확인 (ISD-ERR-001)', async ({ page }) => {
+    let sessionId: string;
+
     await test.step('신규 draft 세션 생성', async () => {
       const createRes = await page.request.post('/api/sessions', {
         data: {
@@ -140,22 +143,16 @@ test.describe('데모 플로우: 강사 세션 관리', () => {
       }
 
       const { data: session } = await createRes.json();
+      sessionId = session.id;
+    });
 
-      await test.step('draft 세션 페이지 접속', async () => {
-        await page.goto(`/instructor/sessions/${session.id}`);
-        // networkidle: React의 세션 API 호출이 완료될 때까지 대기
-        await page.waitForLoadState('networkidle', { timeout: 15_000 }).catch(() => {});
-      });
-
-      await test.step('DOM에 join_code 평문 없음 확인', async () => {
-        // networkidle 이후에도 React setState 렌더링이 남아있을 수 있음
-        // toContainText auto-retry (최대 15s) → draft UI 완전 렌더 보장
-        // "수업 시작" 버튼은 draft 상태 공통 UI (ISD-UI-001에서 검증됨)
-        await expect(page.locator('body')).toContainText(
-          /수업을 시작하면|코드가 발급|시작하면|수업 시작/,
-          { timeout: 25_000 },
-        );
-      });
+    await test.step('draft 세션 GET API — join_code가 null', async () => {
+      // draft 상태에서 join_code는 절대 노출되면 안 됨
+      // UI 렌더링 없이 API 응답 직접 검증 → 서버 부하와 무관하게 안정적
+      const getRes = await page.request.get(`/api/sessions/${sessionId}`);
+      expect(getRes.status()).toBe(200);
+      const { data } = await getRes.json();
+      expect(data.join_code, 'draft 세션의 join_code는 null이어야 한다').toBeNull();
     });
   });
 });
