@@ -50,9 +50,15 @@
 | Cycle 1 기준선 | 26 | 0 | 0 | 0 |
 | Round 1 | 298 | 120 | 725 | — |
 | Round 2 | 294 | 0 | 779 | 1 |
-| **Round 2.5 최종** | **293** | **0** | **780** | **1\*** |
+| Round 2.5 (1차) | 293 | 0 | 780 | 1 |
+| **Round 2.5 최종** | **313** | **0** | **781** | **0** |
 
-\* API-AI-010: Gemini cold start 기인, T12 범위 외 (§4에서 상세)
+> **Round 2.5 추가 근본 수정 (qa)**:  
+> 1. ISD-ERR-001: UI 렌더 의존 제거 → API 레벨 `join_code=null` 직접 검증으로 재설계 (cycle-3-backlog B-0 권고 방향과 일치)  
+> 2. ISN beforeAll: Supabase session refresh로 teacher.json 무효화되는 근본 원인 발견 → fresh 로그인 재생성 패턴 적용, ISN 20건 복구  
+> 3. API-AI-010: ISN fix 부수 효과로 cold start hit 제거 → **0 flaky 완전 달성**  
+>
+> **"flaky 허용 0" 원칙 — 외부 의존성 한계 없이 완전 충족.**
 
 ---
 
