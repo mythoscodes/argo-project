@@ -100,18 +100,16 @@ critic-2의 T3 비평에서 9건 Critical 리스크 식별 → dev-2가 Cycle 2 
    - 신규 `participants_insert_student_academy_active` — student + active + academy 3중 체크
 4. **team-lead**: Supabase MCP `apply_migration` 원격 DB 직접 적용 + `pg_policies` 검증 완료 (정책 2개만 남음)
 
-**최종 결과** (2026-04-11):
-- **293 passed / 0 failed / 0 flaky** (ISD-ERR-001 해소) **/ 780 skipped**
-- 실행 시간 11.6분
-- 2회 연속 전체 실행에서 ISD-ERR-001 flaky 재현 없음 확인
+**최종 결과 (확정)** (2026-04-11):
+- **313 passed / 0 failed / 0 flaky / 781 skipped**
+- 실행 시간 **3.3분** (이전 11.6분 대비 대폭 단축)
+- API-AI-010 포함 전부 0 flaky 확인
 
-**ISD-ERR-001 해소 내용**:
-- `03-instructor-flow.spec.ts`: `expect(page.locator('body')).toContainText(/수업을 시작하면|수업 시작/, { timeout: 25_000 })` 적용
-- `instructor-session-new.spec.ts`: 9 UI 테스트에 `waitForSelector('#title', { timeout: 20_000 })` 추가
-- `test.use({ timeout: 90_000 })` 파일 최상위 (Playwright 1.59.1 nested describe timeout override 버그 우회)
+**수정 내역 2건**:
 
-**잔존 이슈**:
-- API-AI-010 (1 flaky): Gemini cold start 외부 의존성, pre-existing. Argos 코드 버그 아님. critic-2 T8에서 Cycle 3 이관 여부 판정 대기
+1. **ISD-ERR-001 해소** (`03-instructor-flow.spec.ts`) — UI 렌더링 의존 제거, API 레벨에서 join_code=null 직접 검증으로 교체. 서버 부하와 무관하게 안정적.
+
+2. **ISN 전체 401 해소** (`instructor-session-new.spec.ts`) — 근본 원인: ISD 실행 중 Supabase가 teacher 세션을 내부 refresh하면서 teacher.json 구 session_id 무효화(session_not_found). `beforeAll`에서 fresh 로그인으로 teacher.json 재생성하는 패턴으로 수정 → ISN 39 passed / 0 failed, 전체 스위트 통과.
 
 **Round 루프 최종 비교**:
 
@@ -119,9 +117,7 @@ critic-2의 T3 비평에서 9건 Critical 리스크 식별 → dev-2가 Cycle 2 
 |-------|--------|--------|-------|---------|----------|
 | 1 | 298 | 120 | — | 725 | 5.9분 |
 | 2 | 294 | 0 | 1 | 779 | 18.7분 |
-| 2.5 | 293 | 0 | 0/1* | 780 | 11.6분 |
-
-\* ISD-ERR-001 해소, API-AI-010 (Gemini cold start) 잔존
+| 2.5 | 313 | 0 | **0** | 781 | **3.3분** |
 
 **migration 00008**: 원격 DB 적용 완료 (team-lead Supabase MCP 직접 실행). `pg_policies` 검증: `participants_select_same_academy` + `participants_insert_student_academy_active` 2개만 존재. **타이밍 메모**: critic-2의 "SELECT RLS로 이미 보호 → Cycle 3 이관 GO" 판단과 team-lead 원격 적용이 병행 발생. 양 판단 모두 정당, 결과적으로 defense-in-depth 자동 달성.
 
@@ -243,8 +239,8 @@ Cat-A(엔드포인트 없음), Cat-C(auth 상속), Cat-F(상태코드)는 spec �
 | 코드 파일 수정 | — | ~20개 | — |
 | DB 마이그레이션 | 6개 | 8개 | +2 |
 | 신규 API | — | 1개 (/api/participants) | — |
-| Round 2 PASS율 | — | 294/294 = **100%** | (의도적 SKIP 제외) |
-| 잔존 SKIP | — | 779건 | Cycle 3 이관 |
+| Round 2.5 PASS율 | — | 313/313 = **100%** | (의도적 SKIP 제외, 0 flaky) |
+| 잔존 SKIP | — | 781건 | Cycle 3 이관 |
 
 ---
 
@@ -268,4 +264,5 @@ Cat-A(엔드포인트 없음), Cat-C(auth 상속), Cat-F(상태코드)는 spec �
 - 2026-04-11 갱신 v3 (planner) — Round 2.5 완료 반영: flaky 0 확정, P6 보안 검증 결과(migration 00008), analyst-2 ISD-ERR-001 진단, critic-2 기여 갱신, 섹션 4-5 추가
 - 2026-04-11 갱신 v4 (planner) — team-lead 지시 반영: 섹션 2.x Round 2.5 상세(4단계 작업), 섹션 4-5 critic 가정파기 5건 전면 재작성, 섹션 5-3 P6 해소 완료 표시, 섹션 7 critic-2 기여 갱신
 - 2026-04-11 갱신 v5 (planner) — 긴급 동기화 반영: 섹션 2.x 결과에 migration 00008 적용 확정 + pg_policies 검증 + 타이밍 메모 추가. 섹션 3-5 타이밍 동기화 프로세스 개선 후보 추가. cycle-3-backlog A-0 최종 확정.
-- 2026-04-11 갱신 v6 (planner) — Round 2.5 최종 수치 확정(293/0/0flaky/780/11.6분), ISD-ERR-001 해소 상세, Round 루프 비교표 최종화. T8 통과 후 T9 commit 대기.
+- 2026-04-11 갱신 v6 (planner) — Round 2.5 최종 수치 확정(293/0/0flaky/780/11.6분), ISD-ERR-001 해소 상세, Round 루프 비교표 최종화.
+- 2026-04-11 갱신 v7 (planner) — qa 전체 스위트 최종 확정: 313/0/0flaky/781/3.3분. ISN 401 근본 해소(beforeAll fresh login) + ISD-ERR-001 API 레벨 검증 반영. T12 완료.
