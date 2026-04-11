@@ -38,9 +38,9 @@ export async function GET(req: NextRequest) {
     );
   }
 
-  if (!["owner", "teacher"].includes(profile.role)) {
+  if (!["owner", "teacher", "mentor"].includes(profile.role)) {
     return NextResponse.json(
-      { error: "강사/원장만 접근할 수 있습니다." },
+      { error: "강사/원장/멘토만 접근할 수 있습니다." },
       { status: 403 }
     );
   }
@@ -77,7 +77,7 @@ export async function GET(req: NextRequest) {
     );
   }
 
-  return NextResponse.json({ data: { consultations: consultations ?? [] } });
+  return NextResponse.json({ data: consultations ?? [] });
 }
 
 export async function POST(req: NextRequest) {
@@ -105,9 +105,9 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  if (!["owner", "teacher"].includes(profile.role)) {
+  if (!["owner", "teacher", "mentor"].includes(profile.role)) {
     return NextResponse.json(
-      { error: "강사/원장만 접근할 수 있습니다." },
+      { error: "강사/원장/멘토만 접근할 수 있습니다." },
       { status: 403 }
     );
   }
@@ -169,5 +169,5 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  return NextResponse.json({ data: { consultation } }, { status: 201 });
+  return NextResponse.json({ data: consultation }, { status: 201 });
 }

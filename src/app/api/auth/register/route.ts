@@ -6,7 +6,7 @@ const registerSchema = z.object({
   email: z.email(),
   password: z.string().min(6, "비밀번호는 6자 이상이어야 합니다"),
   display_name: z.string().min(1, "이름을 입력해주세요").max(50),
-  role: z.enum(["teacher", "student", "owner"]),
+  role: z.enum(["teacher", "student", "owner", "mentor"]),
   academy_id: z.string().uuid().optional(),
   academy_name: z.string().min(1).max(100).optional(),
 });

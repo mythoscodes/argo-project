@@ -1,10 +1,37 @@
+import { redirect } from "next/navigation";
+import { createClient } from "@/lib/supabase/rsc";
 import { Navbar } from "@/components/layout/navbar";
 
-export default function MentorLayout({
+const ROLE_HOME: Record<string, string> = {
+  teacher: "/instructor",
+  student: "/student/join",
+  owner: "/owner",
+};
+
+export default async function MentorLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    redirect("/login");
+  }
+
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("role")
+    .eq("id", user.id)
+    .single();
+
+  if (!profile || profile.role !== "mentor") {
+    redirect(ROLE_HOME[profile?.role ?? ""] ?? "/login");
+  }
+
   return (
     <>
       <Navbar />

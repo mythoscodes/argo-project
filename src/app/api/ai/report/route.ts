@@ -135,17 +135,18 @@ export async function POST(req: NextRequest) {
   const { sessionId, studentId: requestedStudentId }: PostRequest =
     parseResult.data;
 
-  const isTeacher = ["owner", "teacher"].includes(profile.role);
+  // mentor는 학생 개별 리포트 조회/생성 권한을 갖는 staff로 취급 (N-3 critic 지적)
+  const isStaff = ["owner", "teacher", "mentor"].includes(profile.role);
 
   // 강사는 studentId 필수, 수강생은 본인 리포트만 생성 가능
-  if (isTeacher && !requestedStudentId) {
+  if (isStaff && !requestedStudentId) {
     return NextResponse.json(
       { error: "강사는 studentId를 지정해야 합니다." },
       { status: 400 }
     );
   }
 
-  const targetStudentId = isTeacher ? requestedStudentId! : user.id;
+  const targetStudentId = isStaff ? requestedStudentId! : user.id;
 
   // 세션 정보 조회
   const { data: session, error: sessionError } = await supabase
@@ -162,7 +163,7 @@ export async function POST(req: NextRequest) {
   }
 
   // 강사는 본인 세션의 수강생 리포트만 생성 가능
-  if (isTeacher && session.teacher_id !== user.id) {
+  if (isStaff && session.teacher_id !== user.id) {
     return NextResponse.json(
       { error: "해당 세션의 강사만 리포트를 생성할 수 있습니다." },
       { status: 403 }
@@ -170,7 +171,7 @@ export async function POST(req: NextRequest) {
   }
 
   // 수강생은 자신이 참여한 세션인지 확인
-  if (!isTeacher) {
+  if (!isStaff) {
     const { data: participation } = await supabase
       .from("session_participants")
       .select("id")
@@ -329,7 +330,8 @@ export async function GET(req: NextRequest) {
   }
 
   const { sessionId, studentId: requestedStudentId } = parseResult.data;
-  const isTeacher = ["owner", "teacher"].includes(profile.role);
+  // mentor는 학생 개별 리포트 조회/생성 권한을 갖는 staff로 취급 (N-3 critic 지적)
+  const isStaff = ["owner", "teacher", "mentor"].includes(profile.role);
 
   let query = supabase
     .from("student_reports")
@@ -337,7 +339,7 @@ export async function GET(req: NextRequest) {
     .eq("session_id", sessionId)
     .order("created_at", { ascending: false });
 
-  if (isTeacher) {
+  if (isStaff) {
     // 강사: 특정 수강생 지정 시 해당 수강생, 미지정 시 세션 전체
     if (requestedStudentId) {
       query = query.eq("student_id", requestedStudentId);

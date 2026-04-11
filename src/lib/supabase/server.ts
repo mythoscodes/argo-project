@@ -13,15 +13,10 @@ export async function createClient() {
         getAll() {
           return cookieStore.getAll();
         },
-        setAll(cookiesToSet) {
-          try {
-            cookiesToSet.forEach(({ name, value, options }) =>
-              cookieStore.set(name, value, options)
-            );
-          } catch {
-            // Server Component에서 호출 시 무시 (읽기 전용)
-          }
-        },
+        // ⚠️ setAll 미구현: 모든 API Route는 auth.getUser()만 사용(리프레시 없음).
+        // 세션 리프레시는 middleware.ts가 전담. Server Component는 read-only.
+        // Route Handler에 auth.updateUser/signOut/refreshSession/setSession 등을 추가하려면
+        // 이 파일에 setAll을 다시 구현해야 함 (Context7 /supabase/ssr Pattern 1/2).
       },
     }
   );

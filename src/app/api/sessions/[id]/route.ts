@@ -2,6 +2,16 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { z } from "zod/v4";
 import type { Database } from "@/types/database";
+import { SESSION_CODE_LENGTH } from "@/lib/constants";
+
+function generateJoinCode(): string {
+  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+  let code = "";
+  for (let i = 0; i < SESSION_CODE_LENGTH; i++) {
+    code += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return code;
+}
 
 type SessionUpdate = Database["public"]["Tables"]["sessions"]["Update"];
 
@@ -23,6 +33,8 @@ const updateSessionSchema = z.object({
   anonymousMode: z.boolean().optional(),
 });
 
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 type RouteContext = { params: Promise<{ id: string }> };
 
 export async function GET(_request: NextRequest, context: RouteContext) {
@@ -35,6 +47,10 @@ export async function GET(_request: NextRequest, context: RouteContext) {
   } = await supabase.auth.getUser();
   if (authError || !user) {
     return NextResponse.json({ error: "인증이 필요합니다" }, { status: 401 });
+  }
+
+  if (!UUID_REGEX.test(id)) {
+    return NextResponse.json({ error: "유효하지 않은 세션 ID입니다." }, { status: 400 });
   }
 
   const { data: profile } = await supabase
@@ -76,6 +92,10 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
   } = await supabase.auth.getUser();
   if (authError || !user) {
     return NextResponse.json({ error: "인증이 필요합니다" }, { status: 401 });
+  }
+
+  if (!UUID_REGEX.test(id)) {
+    return NextResponse.json({ error: "유효하지 않은 세션 ID입니다." }, { status: 400 });
   }
 
   let body: unknown;
@@ -138,7 +158,11 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
     }
 
     updateData.status = status;
-    if (status === "active") updateData.started_at = new Date().toISOString();
+    if (status === "active") {
+      updateData.started_at = new Date().toISOString();
+      // draft → active 전환 시 join_code 최초 발급
+      updateData.join_code = generateJoinCode();
+    }
     if (status === "completed") updateData.ended_at = new Date().toISOString();
   }
 
@@ -170,6 +194,10 @@ export async function DELETE(_request: NextRequest, context: RouteContext) {
   } = await supabase.auth.getUser();
   if (authError || !user) {
     return NextResponse.json({ error: "인증이 필요합니다" }, { status: 401 });
+  }
+
+  if (!UUID_REGEX.test(id)) {
+    return NextResponse.json({ error: "유효하지 않은 세션 ID입니다." }, { status: 400 });
   }
 
   // 세션 존재 + 소유권 확인

@@ -118,9 +118,9 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  if (!["owner", "teacher"].includes(profile.role)) {
+  if (!["owner", "teacher", "mentor"].includes(profile.role)) {
     return NextResponse.json(
-      { error: "강사/원장만 접근할 수 있습니다." },
+      { error: "강사/원장/멘토만 접근할 수 있습니다." },
       { status: 403 }
     );
   }
@@ -169,12 +169,15 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // 내 세션
-  const { data: mySessions } = await supabase
+  // mentor는 학원 전체 세션, teacher/owner는 본인 세션 기준 (N-8)
+  const sessionQuery = supabase
     .from("sessions")
     .select("id, subject, created_at")
-    .eq("teacher_id", user.id)
     .order("created_at", { ascending: false });
+
+  const { data: mySessions } = await (profile.role === "mentor"
+    ? sessionQuery.eq("academy_id", profile.academy_id)
+    : sessionQuery.eq("teacher_id", user.id));
 
   const sessionIds = (mySessions ?? []).map((s) => s.id);
   const primarySubject = mySessions?.[0]?.subject ?? "IT";
@@ -283,7 +286,10 @@ export async function POST(req: NextRequest) {
   const riskSignals: string[] = [];
   if (accuracyTriggered)
     riskSignals.push(`평균 정답률 ${Math.round(avgAccuracy)}%로 기준 미달`);
-  if (speedTriggered) riskSignals.push("응답 속도 30% 이상 증가");
+  if (speedTriggered)
+    riskSignals.push(
+      `응답 속도 ${Math.round((RISK_SPEED_INCREASE_RATIO - 1) * 100)}% 이상 증가`
+    );
   if (absenceTriggered)
     riskSignals.push(`${consecutiveAbsence}회 연속 미참여`);
 
@@ -339,8 +345,15 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  return NextResponse.json(
-    { data: { briefing: briefingResult.data, riskLevel, riskSignals } },
-    { status: 200 }
-  );
+  // 프론트엔드 MentorBriefing 인터페이스에 맞춰 snake_case로 변환
+  const briefing = {
+    talking_points: briefingResult.data.talkingPoints,
+    weakness_analysis: briefingResult.data.weaknessAnalysis,
+    recommended_strategy: briefingResult.data.consultationStrategy,
+    recommended_courses: briefingResult.data.recommendedCourses.map(
+      (c) => c.courseTitle
+    ),
+  };
+
+  return NextResponse.json({ data: briefing }, { status: 200 });
 }

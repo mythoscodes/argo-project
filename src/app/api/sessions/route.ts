@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { z } from "zod/v4";
-import { SESSION_CODE_LENGTH } from "@/lib/constants";
 
 const createSessionSchema = z.object({
   title: z.string().min(1).max(200),
@@ -17,17 +16,8 @@ const createSessionSchema = z.object({
     ])
     .optional(),
   topics: z.array(z.string()).default([]),
-  anonymousMode: z.boolean().default(true),
+  anonymousMode: z.boolean().default(false),
 });
-
-function generateJoinCode(): string {
-  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-  let code = "";
-  for (let i = 0; i < SESSION_CODE_LENGTH; i++) {
-    code += chars.charAt(Math.floor(Math.random() * chars.length));
-  }
-  return code;
-}
 
 export async function GET(request: NextRequest) {
   const supabase = await createClient();
@@ -146,7 +136,6 @@ export async function POST(request: NextRequest) {
   }
 
   const { title, subject, courseCategory, topics, anonymousMode } = parsed.data;
-  const joinCode = generateJoinCode();
 
   const { data, error } = await supabase
     .from("sessions")
@@ -157,7 +146,6 @@ export async function POST(request: NextRequest) {
       subject,
       course_category: courseCategory,
       topics,
-      join_code: joinCode,
       anonymous_mode: anonymousMode,
     })
     .select()

@@ -103,6 +103,8 @@ coverage/
 .nyc_output/
 playwright-report/
 test-results/
+/playwright/.cache/
+tests/e2e/fixtures/.auth/
 
 # === Build/Bundle ===
 dist/

@@ -21,6 +21,7 @@ interface StudentWithRisk {
   riskLevel: "HIGH" | "MEDIUM" | "LOW";
   riskSignals: RiskSignal[];
   recentAccuracyRates: number[];
+  consecutiveAbsences: number;
   weakTopics: string[];
   lastSessionAt: string | null;
 }
@@ -50,22 +51,25 @@ export async function GET() {
     );
   }
 
-  if (!["owner", "teacher"].includes(profile.role)) {
+  if (!["owner", "teacher", "mentor"].includes(profile.role)) {
     return NextResponse.json(
-      { error: "강사/원장만 접근할 수 있습니다." },
+      { error: "강사/원장/멘토만 접근할 수 있습니다." },
       { status: 403 }
     );
   }
 
-  // 내 세션에 참여한 수강생 목록
-  const { data: mySessions } = await supabase
+  // mentor는 학원 전체 세션, teacher/owner는 본인 세션 기준 (N-8)
+  const sessionQuery = supabase
     .from("sessions")
     .select("id, created_at")
-    .eq("teacher_id", user.id)
     .order("created_at", { ascending: false });
 
+  const { data: mySessions } = await (profile.role === "mentor"
+    ? sessionQuery.eq("academy_id", profile.academy_id)
+    : sessionQuery.eq("teacher_id", user.id));
+
   if (!mySessions || mySessions.length === 0) {
-    return NextResponse.json({ data: { students: [] } });
+    return NextResponse.json({ data: [] });
   }
 
   const sessionIds = mySessions.map((s) => s.id);
@@ -77,7 +81,7 @@ export async function GET() {
     .in("session_id", sessionIds);
 
   if (!participants || participants.length === 0) {
-    return NextResponse.json({ data: { students: [] } });
+    return NextResponse.json({ data: [] });
   }
 
   const uniqueStudentIds = [
@@ -263,6 +267,7 @@ export async function GET() {
       riskLevel,
       riskSignals: signals,
       recentAccuracyRates,
+      consecutiveAbsences: consecutiveAbsence,
       weakTopics,
       lastSessionAt,
     };
@@ -272,5 +277,34 @@ export async function GET() {
   const riskOrder = { HIGH: 0, MEDIUM: 1, LOW: 2 };
   students.sort((a, b) => riskOrder[a.riskLevel] - riskOrder[b.riskLevel]);
 
-  return NextResponse.json({ data: { students } });
+  // 프론트엔드 StudentRisk 인터페이스에 맞춰 snake_case flat array로 변환 (C-8)
+  const response = students.map((s) => {
+    const avgAccuracy =
+      s.recentAccuracyRates.length > 0
+        ? Math.round(
+            s.recentAccuracyRates.reduce((acc, r) => acc + r, 0) /
+              s.recentAccuracyRates.length
+          )
+        : 0;
+    const triggeredSignals = s.riskSignals.filter((r) => r.triggered);
+    const summary =
+      triggeredSignals.length > 0
+        ? triggeredSignals.map((r) => r.description).join(" · ")
+        : "이탈 위험 신호 없음";
+    return {
+      student_id: s.studentId,
+      display_name: s.displayName,
+      risk_level: s.riskLevel,
+      risk_signals: {
+        low_accuracy: s.riskSignals.find((r) => r.type === "accuracy")?.triggered ?? false,
+        speed_increase: s.riskSignals.find((r) => r.type === "speed")?.triggered ?? false,
+        absence: s.riskSignals.find((r) => r.type === "absence")?.triggered ?? false,
+      },
+      recent_accuracy: avgAccuracy,
+      consecutive_absences: s.consecutiveAbsences,
+      summary,
+    };
+  });
+
+  return NextResponse.json({ data: response });
 }

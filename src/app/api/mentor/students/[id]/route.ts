@@ -42,9 +42,9 @@ export async function GET(
     );
   }
 
-  if (!["owner", "teacher"].includes(profile.role)) {
+  if (!["owner", "teacher", "mentor"].includes(profile.role)) {
     return NextResponse.json(
-      { error: "강사/원장만 접근할 수 있습니다." },
+      { error: "강사/원장/멘토만 접근할 수 있습니다." },
       { status: 403 }
     );
   }
@@ -81,12 +81,15 @@ export async function GET(
     );
   }
 
-  // 내 세션 목록
-  const { data: mySessions } = await supabase
+  // mentor는 학원 전체 세션, teacher/owner는 본인 세션 기준 (N-8)
+  const sessionQuery = supabase
     .from("sessions")
     .select("id, title, subject, created_at, status")
-    .eq("teacher_id", user.id)
     .order("created_at", { ascending: false });
+
+  const { data: mySessions } = await (profile.role === "mentor"
+    ? sessionQuery.eq("academy_id", profile.academy_id)
+    : sessionQuery.eq("teacher_id", user.id));
 
   const sessionIds = (mySessions ?? []).map((s) => s.id);
 
@@ -255,18 +258,31 @@ export async function GET(
     .eq("instructor_id", user.id)
     .order("created_at", { ascending: false });
 
+  // 프론트엔드 StudentDetail 인터페이스에 맞춰 snake_case로 변환 (C-8)
   return NextResponse.json({
     data: {
-      student: {
-        id: studentProfile.id,
-        displayName: studentProfile.display_name,
+      student_id: studentProfile.id,
+      display_name: studentProfile.display_name,
+      risk_level: riskLevel,
+      risk_signals: {
+        low_accuracy: riskSignals.find((r) => r.type === "accuracy")?.triggered ?? false,
+        speed_increase: riskSignals.find((r) => r.type === "speed")?.triggered ?? false,
+        absence: riskSignals.find((r) => r.type === "absence")?.triggered ?? false,
       },
-      riskLevel,
-      riskSignals,
-      sessionAccuracyHistory,
-      topicScores,
-      weakTopics,
-      consultations: consultations ?? [],
+      recent_accuracy:
+        recentRates.length > 0
+          ? Math.round(recentRates.reduce((sum, r) => sum + r, 0) / recentRates.length)
+          : 0,
+      consecutive_absences: consecutiveAbsence,
+      session_history: sessionAccuracyHistory.map((s) => ({
+        session_id: s.sessionId,
+        title: s.sessionTitle,
+        accuracy: s.accuracyRate,
+        created_at: s.createdAt,
+      })),
+      weak_topics: topicScores
+        .filter((t) => t.score < 100)
+        .map((t) => ({ topic: t.topic, accuracy: t.score })),
     },
   });
 }

@@ -56,6 +56,9 @@ export default function LoginPage() {
         case "owner":
           router.push("/owner");
           break;
+        case "mentor":
+          router.push("/mentor");
+          break;
         default:
           router.push("/");
       }

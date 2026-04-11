@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
+import { createClient } from "@/lib/supabase/rsc";
 
 export default async function HomePage() {
   const supabase = await createClient();
@@ -24,6 +24,9 @@ export default async function HomePage() {
       break;
     case "owner":
       redirect("/owner");
+      break;
+    case "mentor":
+      redirect("/mentor");
       break;
     default:
       redirect("/login");

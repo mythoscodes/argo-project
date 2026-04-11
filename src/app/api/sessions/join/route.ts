@@ -41,7 +41,7 @@ export async function POST(request: NextRequest) {
   // 수강생 역할 확인
   const { data: profile } = await supabase
     .from("profiles")
-    .select("role")
+    .select("role, academy_id")
     .eq("id", user.id)
     .single();
 
@@ -54,7 +54,7 @@ export async function POST(request: NextRequest) {
 
   const { data: session } = await supabase
     .from("sessions")
-    .select("id, status, title")
+    .select("id, status, title, academy_id")
     .eq("join_code", joinCode.toUpperCase())
     .single();
 
@@ -69,6 +69,14 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       { error: "현재 진행 중인 세션이 아닙니다" },
       { status: 400 }
+    );
+  }
+
+  // 학원 교차 참여 방지 — 수강생의 academy_id와 세션의 academy_id 일치 확인
+  if (session.academy_id !== profile.academy_id) {
+    return NextResponse.json(
+      { error: "유효하지 않은 참여 코드입니다" },
+      { status: 404 }
     );
   }
 

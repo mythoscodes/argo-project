@@ -168,9 +168,9 @@ export async function GET(request: NextRequest) {
     .eq("id", user.id)
     .single();
 
-  if (!profile || !["owner", "teacher"].includes(profile.role)) {
+  if (!profile || !["owner", "teacher", "mentor"].includes(profile.role)) {
     return NextResponse.json(
-      { error: "강사 권한이 필요합니다" },
+      { error: "강사/원장/멘토 권한이 필요합니다" },
       { status: 403 }
     );
   }
@@ -298,9 +298,9 @@ export async function POST(request: NextRequest) {
     .eq("id", user.id)
     .single();
 
-  if (!profile || !["owner", "teacher"].includes(profile.role)) {
+  if (!profile || !["owner", "teacher", "mentor"].includes(profile.role)) {
     return NextResponse.json(
-      { error: "강사 권한이 필요합니다" },
+      { error: "강사/원장/멘토 권한이 필요합니다" },
       { status: 403 }
     );
   }

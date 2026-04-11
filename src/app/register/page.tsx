@@ -15,6 +15,7 @@ const ROLE_OPTIONS = [
   { value: "teacher", label: "강사", description: "수업 세션 생성 및 AI 퀴즈 관리" },
   { value: "student", label: "수강생", description: "수업 참여 및 퀴즈 응답" },
   { value: "owner", label: "원장", description: "학원 경영 대시보드 및 수강생 관리" },
+  { value: "mentor", label: "멘토", description: "수강생 이탈 위험 감지 및 상담 관리" },
 ];
 
 export default function RegisterPage() {
@@ -92,6 +93,9 @@ export default function RegisterPage() {
           break;
         case "owner":
           router.push("/owner");
+          break;
+        case "mentor":
+          router.push("/mentor");
           break;
         default:
           router.push("/");
