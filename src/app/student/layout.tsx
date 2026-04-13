@@ -1,4 +1,6 @@
+import type { Metadata } from "next";
 import { redirect } from "next/navigation";
+export const metadata: Metadata = { title: "수강생" };
 import { createClient } from "@/lib/supabase/rsc";
 import { Navbar } from "@/components/layout/navbar";
 

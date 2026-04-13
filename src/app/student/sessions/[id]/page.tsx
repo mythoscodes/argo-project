@@ -9,6 +9,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Spinner } from "@/components/ui/spinner";
+import { Textarea } from "@/components/ui/textarea";
+import { useToast } from "@/components/ui/toast";
 import { cn } from "@/lib/utils";
 
 type QuizRow = Database["public"]["Tables"]["quizzes"]["Row"];
@@ -20,6 +22,7 @@ interface QuizWithAnswer extends QuizRow {
 
 export default function StudentQuizPage({ params }: { params: Promise<{ id: string }> }) {
   const { id: sessionId } = use(params);
+  const { toast } = useToast();
   const router = useRouter();
   const [quizzes, setQuizzes] = useState<QuizWithAnswer[]>([]);
   const [currentQuizIndex, setCurrentQuizIndex] = useState(0);
@@ -124,6 +127,18 @@ export default function StudentQuizPage({ params }: { params: Promise<{ id: stri
           setCurrentQuizIndex(currentQuizIndex + 1);
           setStartTime(Date.now());
         }
+      } else {
+        const errResult = await response.json().catch(() => null);
+        if (response.status === 409) {
+          // 이미 응답한 퀴즈 — 다음으로 이동
+          setSelectedAnswer(null);
+          if (currentQuizIndex < quizzes.length - 1) {
+            setCurrentQuizIndex(currentQuizIndex + 1);
+            setStartTime(Date.now());
+          }
+        } else {
+          toast(errResult?.error ?? "응답 제출에 실패했습니다. 다시 시도해주세요.", "error");
+        }
       }
     } finally {
       setIsSubmitting(false);
@@ -203,23 +218,49 @@ export default function StudentQuizPage({ params }: { params: Promise<{ id: stri
     <div className="flex min-h-[calc(100vh-56px)] items-center justify-center p-4">
       <div className="w-full max-w-lg space-y-4">
         {/* Progress */}
-        <div className="flex items-center justify-between text-sm">
-          <Badge variant="secondary">라운드 {currentQuiz.round_number}</Badge>
-          <span className="text-muted-foreground">
-            {currentQuizIndex + 1} / {quizzes.length}
-          </span>
+        <div className="space-y-2">
+          <div className="flex items-center justify-between text-sm">
+            <div className="flex items-center gap-2">
+              <Badge variant="secondary">라운드 {currentQuiz.round_number}</Badge>
+              {currentQuiz.question_type === "short_answer" && (
+                <Badge variant="outline" className="text-violet-600 border-violet-200 text-[10px]">주관식</Badge>
+              )}
+            </div>
+            <span className="text-muted-foreground">
+              {currentQuizIndex + 1} / {quizzes.length}
+            </span>
+          </div>
+          {/* Dot progress */}
+          <div className="flex gap-1.5 justify-center">
+            {quizzes.map((q, i) => (
+              <div
+                key={q.id}
+                className={cn(
+                  "h-2 rounded-full transition-all",
+                  i === currentQuizIndex ? "w-6 bg-primary" :
+                  i < currentQuizIndex ? "w-2 bg-primary/40" :
+                  q.myResponse ? "w-2 bg-green-400" : "w-2 bg-muted"
+                )}
+              />
+            ))}
+          </div>
         </div>
 
         {/* Quiz Card */}
-        <Card>
+        <Card className="shadow-lg border-t-4 border-t-primary">
           <CardHeader>
-            <div className="flex items-start gap-2">
-              <span className="flex h-7 w-7 items-center justify-center rounded-full bg-primary text-primary-foreground text-sm font-bold shrink-0">
+            <div className="flex items-start gap-3">
+              <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 text-white text-sm font-bold shrink-0 shadow-sm">
                 {currentQuizIndex + 1}
               </span>
-              <CardTitle className="text-base leading-relaxed">
-                {currentQuiz.question_text}
-              </CardTitle>
+              <div>
+                <CardTitle className="text-base leading-relaxed">
+                  {currentQuiz.question_text}
+                </CardTitle>
+                <div className="flex gap-1.5 mt-2">
+                  <Badge variant="secondary" className="text-[10px]">{currentQuiz.topic_tag}</Badge>
+                </div>
+              </div>
             </div>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -238,45 +279,66 @@ export default function StudentQuizPage({ params }: { params: Promise<{ id: stri
               </div>
             )}
 
-            {/* Options */}
-            <div className="space-y-2">
-              {options.map((option, idx) => {
-                const label = String.fromCharCode(65 + idx);
-                const isSelected = selectedAnswer === option;
-                const isCorrectAfterAnswer = isAnswered && option === currentQuiz.myResponse?.selected_answer;
+            {/* Options: 객관식 vs 주관식 */}
+            {options.length > 0 ? (
+              <div className="space-y-2">
+                {options.map((option, idx) => {
+                  const label = String.fromCharCode(65 + idx);
+                  const isSelected = selectedAnswer === option;
+                  const isCorrectAfterAnswer = isAnswered && option === currentQuiz.myResponse?.selected_answer;
 
-                return (
-                  <button
-                    key={idx}
-                    type="button"
-                    disabled={isAnswered}
-                    onClick={() => setSelectedAnswer(option)}
-                    className={cn(
-                      "w-full flex items-center gap-3 rounded-xl border-2 p-4 text-left transition-all active:scale-[0.98]",
-                      isAnswered
-                        ? isCorrectAfterAnswer
-                          ? "border-primary bg-primary/5"
-                          : "border-border opacity-60"
-                        : isSelected
-                          ? "border-primary bg-primary/5 shadow-sm"
-                          : "border-border hover:border-primary/30 hover:bg-accent/50 cursor-pointer"
-                    )}
-                  >
-                    <span
+                  return (
+                    <button
+                      key={idx}
+                      type="button"
+                      disabled={isAnswered}
+                      onClick={() => setSelectedAnswer(option)}
                       className={cn(
-                        "flex h-8 w-8 items-center justify-center rounded-full text-sm font-bold shrink-0",
-                        isSelected || isCorrectAfterAnswer
-                          ? "bg-primary text-primary-foreground"
-                          : "bg-muted text-muted-foreground"
+                        "w-full flex items-center gap-3 rounded-xl border-2 p-4 text-left transition-all active:scale-[0.98]",
+                        isAnswered
+                          ? isCorrectAfterAnswer
+                            ? "border-primary bg-primary/5"
+                            : "border-border opacity-60"
+                          : isSelected
+                            ? "border-primary bg-primary/5 shadow-sm"
+                            : "border-border hover:border-primary/30 hover:bg-accent/50 cursor-pointer"
                       )}
                     >
-                      {label}
-                    </span>
-                    <span className="text-sm font-medium">{option}</span>
-                  </button>
-                );
-              })}
-            </div>
+                      <span
+                        className={cn(
+                          "flex h-8 w-8 items-center justify-center rounded-full text-sm font-bold shrink-0",
+                          isSelected || isCorrectAfterAnswer
+                            ? "bg-primary text-primary-foreground"
+                            : "bg-muted text-muted-foreground"
+                        )}
+                      >
+                        {label}
+                      </span>
+                      <span className="text-sm font-medium">{option}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            ) : (
+              /* 주관식 */
+              <div className="space-y-2">
+                <Badge variant="outline" className="text-xs text-violet-600 border-violet-200">주관식</Badge>
+                <Textarea
+                  placeholder="답변을 작성하세요..."
+                  value={selectedAnswer ?? ""}
+                  onChange={(e) => setSelectedAnswer(e.target.value)}
+                  disabled={isAnswered}
+                  rows={4}
+                  className="text-sm"
+                />
+                {isAnswered && currentQuiz.myResponse && (
+                  <div className="rounded-lg bg-blue-50 p-3 text-sm">
+                    <p className="text-xs font-semibold text-blue-700 mb-1">모범 답안</p>
+                    <p className="text-blue-800">{currentQuiz.correct_answer}</p>
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Submit */}
             {!isAnswered && (

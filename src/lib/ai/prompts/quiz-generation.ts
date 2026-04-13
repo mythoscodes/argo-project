@@ -19,7 +19,7 @@ export function buildQuizSystemPrompt(): string {
   "questions": [
     {
       "question_text": "문제 텍스트",
-      "question_type": "multiple_choice|true_false|code_output|find_bug|fill_blank",
+      "question_type": "multiple_choice|true_false|code_output|find_bug|fill_blank|short_answer",
       "code_snippet": "코드 (없으면 null)",
       "code_language": "java|javascript|python|null",
       "options": ["선택지1", "선택지2", ...],
@@ -36,6 +36,7 @@ export function buildQuizSystemPrompt(): string {
 - question_type이 code_output/find_bug/fill_blank면 code_snippet 필수
 - true_false는 options: ["True", "False"]
 - fill_blank의 code_snippet에서 빈칸은 ___로 표시
+- short_answer는 주관식: options는 빈 배열 [], correct_answer에 모범 답안 작성 (키워드 중심 2~3문장)
 - 한국어로 출력`;
 }
 
@@ -60,11 +61,14 @@ export function buildQuizUserPrompt(params: QuizPromptParams): string {
 난이도: ${difficultyGuide}
 ${avoidSection}
 다음과 같은 유형으로 코드 중심 문제를 포함하여 생성하세요:
-- code_output: "이 코드의 실행 결과는?"
-- find_bug: "이 코드에서 버그를 찾아라"
-- fill_blank: "빈칸에 들어갈 코드는?"
+- code_output: "이 코드의 실행 결과는?" (객관식)
+- find_bug: "이 코드에서 버그를 찾아라" (객관식)
+- fill_blank: "빈칸에 들어갈 코드는?" (객관식)
 - multiple_choice: 개념 이해 객관식
-- true_false: 참/거짓 판별
+- short_answer: 주관식 서술형 ("~을 설명하시오", "~의 차이점은?")
+
+중요: ${count}개 중 반드시 2개는 short_answer(주관식)로, 나머지는 객관식(code_output/find_bug/fill_blank/multiple_choice)으로 생성하세요.
+주관식(short_answer)은 options를 빈 배열 []로, correct_answer에 모범답안을 작성하세요.
 
 참고 예시:
 ${fewShotExample}

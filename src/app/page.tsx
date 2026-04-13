@@ -20,7 +20,7 @@ export default async function HomePage() {
       redirect("/instructor");
       break;
     case "student":
-      redirect("/student/join");
+      redirect("/student");
       break;
     case "owner":
       redirect("/owner");

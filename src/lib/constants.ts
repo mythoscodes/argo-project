@@ -7,7 +7,8 @@ export const AI_MAX_RETRY_COUNT = 1;
 // 퀴즈 설정
 export const MAX_QUIZ_COUNT = 5;
 export const MIN_QUIZ_COUNT = 1;
-export const DEFAULT_QUIZ_COUNT = 3;
+export const DEFAULT_QUIZ_COUNT = 5;
+export const SHORT_ANSWER_COUNT = 2; // 주관식 문제 수
 
 // 세션 설정
 export const SESSION_CODE_LENGTH = 6;

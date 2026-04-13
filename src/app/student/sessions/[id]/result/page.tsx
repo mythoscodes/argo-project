@@ -76,26 +76,104 @@ export default function StudentResultPage({ params }: { params: Promise<{ id: st
   const totalCount = results.length;
   const scorePercent = totalCount > 0 ? Math.round((correctCount / totalCount) * 100) : 0;
 
+  // 평균 응답 시간
+  const timesMs = results.filter((r) => r.response_time_ms).map((r) => r.response_time_ms!);
+  const avgTimeSec = timesMs.length > 0 ? (timesMs.reduce((s, t) => s + t, 0) / timesMs.length / 1000).toFixed(1) : null;
+  const fastestSec = timesMs.length > 0 ? (Math.min(...timesMs) / 1000).toFixed(1) : null;
+
+  // 토픽별 정답률
+  const topicMap = new Map<string, { correct: number; total: number }>();
+  for (const r of results) {
+    const existing = topicMap.get(r.topic_tag) ?? { correct: 0, total: 0 };
+    topicMap.set(r.topic_tag, {
+      correct: existing.correct + (r.is_correct ? 1 : 0),
+      total: existing.total + 1,
+    });
+  }
+  const topicScores = [...topicMap.entries()].map(([topic, stats]) => ({
+    topic,
+    accuracy: Math.round((stats.correct / stats.total) * 100),
+    correct: stats.correct,
+    total: stats.total,
+  }));
+
   return (
     <div className="max-w-lg mx-auto p-4 space-y-6 pb-20">
       {/* Score Summary */}
-      <Card className="text-center">
-        <CardContent className="py-8">
-          <Trophy className={cn(
-            "h-14 w-14 mx-auto mb-3",
-            scorePercent >= 80 ? "text-yellow-500" : scorePercent >= 60 ? "text-blue-500" : "text-muted-foreground"
-          )} />
-          <h2 className="text-3xl font-bold">
+      <Card className="overflow-hidden text-center">
+        <div className={cn(
+          "py-8 px-4",
+          scorePercent >= 80
+            ? "bg-gradient-to-br from-yellow-400 via-amber-500 to-orange-500 text-white"
+            : scorePercent >= 60
+              ? "bg-gradient-to-br from-blue-500 via-indigo-500 to-violet-500 text-white"
+              : "bg-gradient-to-br from-slate-500 via-slate-600 to-slate-700 text-white"
+        )}>
+          <Trophy className="h-14 w-14 mx-auto mb-3 opacity-90" />
+          <h2 className="text-4xl font-extrabold">
             {correctCount} / {totalCount}
           </h2>
-          <p className="text-muted-foreground mt-1">정답률 {scorePercent}%</p>
+          <p className="opacity-80 mt-1 text-lg">정답률 {scorePercent}%</p>
           <div className="flex justify-center gap-2 mt-3">
-            <Badge variant={scorePercent >= 80 ? "success" : scorePercent >= 60 ? "warning" : "destructive"}>
+            <Badge className="bg-white/20 text-white border-white/30 text-sm px-4 py-1">
               {scorePercent >= 80 ? "우수" : scorePercent >= 60 ? "보통" : "복습 필요"}
             </Badge>
           </div>
-        </CardContent>
+        </div>
       </Card>
+
+      {/* Stats Row */}
+      {(avgTimeSec || topicScores.length > 1) && (
+        <div className="grid grid-cols-2 gap-3">
+          {avgTimeSec && (
+            <Card>
+              <CardContent className="p-3 text-center">
+                <p className="text-xs text-muted-foreground mb-0.5">평균 응답시간</p>
+                <p className="text-xl font-bold">{avgTimeSec}<span className="text-sm font-normal text-muted-foreground">초</span></p>
+              </CardContent>
+            </Card>
+          )}
+          {fastestSec && (
+            <Card>
+              <CardContent className="p-3 text-center">
+                <p className="text-xs text-muted-foreground mb-0.5">최빠른 응답</p>
+                <p className="text-xl font-bold">{fastestSec}<span className="text-sm font-normal text-muted-foreground">초</span></p>
+              </CardContent>
+            </Card>
+          )}
+        </div>
+      )}
+
+      {/* Topic Breakdown */}
+      {topicScores.length > 0 && (
+        <Card>
+          <CardContent className="p-4">
+            <p className="text-sm font-semibold mb-3">토픽별 성적</p>
+            <div className="space-y-2">
+              {topicScores.map((t) => (
+                <div key={t.topic} className="flex items-center gap-3">
+                  <span className="text-xs w-20 truncate font-medium">{t.topic}</span>
+                  <div className="flex-1 h-2 rounded-full bg-muted overflow-hidden">
+                    <div
+                      className={cn(
+                        "h-full rounded-full transition-all",
+                        t.accuracy >= 80 ? "bg-green-500" : t.accuracy >= 60 ? "bg-yellow-500" : "bg-red-500"
+                      )}
+                      style={{ width: `${t.accuracy}%` }}
+                    />
+                  </div>
+                  <span className={cn(
+                    "text-xs font-mono font-bold w-14 text-right",
+                    t.accuracy >= 80 ? "text-green-600" : t.accuracy >= 60 ? "text-yellow-600" : "text-red-600"
+                  )}>
+                    {t.correct}/{t.total} ({t.accuracy}%)
+                  </span>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Question Results */}
       <div className="space-y-3">

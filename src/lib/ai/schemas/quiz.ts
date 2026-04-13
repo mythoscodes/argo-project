@@ -6,6 +6,7 @@ export const QuestionTypeSchema = z.enum([
   "code_output",
   "find_bug",
   "fill_blank",
+  "short_answer",
 ]);
 
 export const DifficultySchema = z.enum(["easy", "medium", "hard"]);
@@ -15,7 +16,7 @@ export const GeneratedQuizQuestionSchema = z.object({
   question_type: QuestionTypeSchema,
   code_snippet: z.string().nullable().optional(),
   code_language: z.string().nullable().optional(),
-  options: z.array(z.string()).min(2).max(5),
+  options: z.array(z.string()).max(5),
   correct_answer: z.string().min(1),
   topic_tag: z.string().min(1),
   misconception_tags: z.array(z.string()).nullable().optional(),

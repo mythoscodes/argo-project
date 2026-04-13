@@ -14,6 +14,15 @@ import {
   Square,
   RefreshCw,
   FileText,
+  Clock,
+  Tag,
+  AlertTriangle,
+  Lightbulb,
+  GraduationCap,
+  Briefcase,
+  Timer,
+  BookOpen,
+  Target,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { useRealtimeResponses } from "@/hooks/use-realtime";
@@ -27,6 +36,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { UnderstandingHeatmap } from "@/components/heatmap/understanding-heatmap";
 import { DeltaChart } from "@/components/charts/delta-chart";
+import { useToast } from "@/components/ui/toast";
 
 type SessionRow = Database["public"]["Tables"]["sessions"]["Row"];
 type QuizRow = Database["public"]["Tables"]["quizzes"]["Row"];
@@ -35,21 +45,33 @@ interface ParticipantInfo {
   id: string;
   display_name: string;
   joined_at: string;
+  overall_level?: string | null;
+  experience_level?: string | null;
 }
 
-interface CoachingSuggestion {
-  coaching_suggestion: string | null;
-  understanding_scores: Record<string, number> | null;
-  weak_topics: string[] | null;
-  created_at: string;
+interface CoachingData {
+  insight: string;
+  weakConcept: string;
+  misconceptionDetail: string;
+  suggestionBeginner: string;
+  suggestionAdvanced: string;
+  interviewTip?: string;
+}
+
+interface MisconceptionCluster {
+  wrongAnswer: string;
+  count: number;
+  misconceptionTags: string[];
 }
 
 export default function SessionDashboardPage({ params }: { params: Promise<{ id: string }> }) {
   const { id: sessionId } = use(params);
+  const { toast } = useToast();
   const [session, setSession] = useState<SessionRow | null>(null);
   const [quizzes, setQuizzes] = useState<QuizRow[]>([]);
   const [participants, setParticipants] = useState<ParticipantInfo[]>([]);
-  const [coaching, setCoaching] = useState<CoachingSuggestion[]>([]);
+  const [coaching, setCoaching] = useState<CoachingData[]>([]);
+  const [misconceptionClusters, setMisconceptionClusters] = useState<Record<string, MisconceptionCluster[]>>({});
   const [isLoading, setIsLoading] = useState(true);
   const [isGeneratingQuiz, setIsGeneratingQuiz] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
@@ -101,13 +123,21 @@ export default function SessionDashboardPage({ params }: { params: Promise<{ id:
         if (studentIds.length > 0) {
           const { data: profiles } = await supabase
             .from("profiles")
-            .select("id, display_name")
+            .select("id, display_name, experience_level")
             .in("id", studentIds);
+
+          // 수강생별 최신 역량 진단 수준 조회
+          const levelRes = await fetch(`/api/ai/assessment?sessionId=${sessionId}`);
+          const levelData: Array<{ student_id: string; overall_level: string | null }> =
+            levelRes.ok ? ((await levelRes.json()).data?.students ?? []) : [];
+          const levelMap = new Map(levelData.map((s) => [s.student_id, s.overall_level]));
 
           const participantList: ParticipantInfo[] = data.map((p) => ({
             id: p.student_id,
             display_name: profiles?.find((pr) => pr.id === p.student_id)?.display_name ?? "익명",
             joined_at: p.joined_at,
+            overall_level: levelMap.get(p.student_id) ?? null,
+            experience_level: profiles?.find((pr) => pr.id === p.student_id)?.experience_level ?? null,
           }));
           setParticipants(participantList);
         }
@@ -153,6 +183,9 @@ export default function SessionDashboardPage({ params }: { params: Promise<{ id:
     if (response.ok) {
       const result = await response.json();
       setSession(result.data);
+    } else {
+      const errResult = await response.json().catch(() => null);
+      toast(errResult?.error ?? "세션 상태 변경에 실패했습니다.", "error");
     }
   }
 
@@ -169,12 +202,15 @@ export default function SessionDashboardPage({ params }: { params: Promise<{ id:
           sessionId,
           subject: session.subject,
           topic: topics.join(", ") || session.subject,
-          count: 3,
+          count: 5,
           difficulty: "mixed",
         }),
       });
       if (response.ok) {
         await loadSession();
+      } else {
+        const errResult = await response.json().catch(() => null);
+        toast(errResult?.error ?? "AI 퀴즈 생성에 실패했습니다. 잠시 후 다시 시도해주세요.", "error");
       }
     } finally {
       setIsGeneratingQuiz(false);
@@ -192,10 +228,23 @@ export default function SessionDashboardPage({ params }: { params: Promise<{ id:
       });
       if (response.ok) {
         const result = await response.json();
-        setAnalysisData(result.data);
+        if (result.data) {
+          setAnalysisData({
+            understanding_scores: result.data.understandingScores ?? {},
+            weak_topics: result.data.weakTopics ?? [],
+            delta: result.data.delta ?? undefined,
+          });
+          if (result.data.misconceptionClusters) {
+            setMisconceptionClusters(result.data.misconceptionClusters);
+          }
+        }
+      } else {
+        const errResult = await response.json().catch(() => null);
+        const errMsg = errResult?.error ?? "분석에 실패했습니다.";
+        toast(errMsg, "error");
       }
 
-      // Also fetch coaching
+      // AI 코칭 생성
       const coachingRes = await fetch("/api/ai/coaching", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -203,7 +252,10 @@ export default function SessionDashboardPage({ params }: { params: Promise<{ id:
       });
       if (coachingRes.ok) {
         const coachResult = await coachingRes.json();
-        setCoaching((prev) => [coachResult.data, ...prev]);
+        const coachData = coachResult.data?.coaching;
+        if (coachData) {
+          setCoaching((prev) => [coachData, ...prev]);
+        }
       }
     } finally {
       setIsAnalyzing(false);
@@ -224,12 +276,15 @@ export default function SessionDashboardPage({ params }: { params: Promise<{ id:
           sessionId,
           subject: session.subject,
           topic: topics.join(", ") || session.subject,
-          count: 3,
+          count: 5,
           difficulty: "mixed",
         }),
       });
       if (response.ok) {
         await loadSession();
+      } else {
+        const errResult = await response.json().catch(() => null);
+        toast(errResult?.error ?? "재퀴즈 생성에 실패했습니다.", "error");
       }
     } finally {
       setIsGeneratingQuiz(false);
@@ -273,16 +328,44 @@ export default function SessionDashboardPage({ params }: { params: Promise<{ id:
               </span>
             )}
           </div>
+          <div className="flex items-center gap-3 mt-1 text-sm text-muted-foreground flex-wrap">
+            <span className="flex items-center gap-1"><BookOpen className="h-3.5 w-3.5" />{session.subject}</span>
+            {session.course_category && (
+              <span className="flex items-center gap-1"><Tag className="h-3.5 w-3.5" />{session.course_category}</span>
+            )}
+            {session.started_at && (
+              <span className="flex items-center gap-1">
+                <Clock className="h-3.5 w-3.5" />
+                {new Date(session.started_at).toLocaleString("ko-KR", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
+                {session.ended_at && ` ~ ${new Date(session.ended_at).toLocaleString("ko-KR", { hour: "2-digit", minute: "2-digit" })}`}
+              </span>
+            )}
+          </div>
         </div>
         <div className="flex gap-2">
           {session.status === "draft" && (
-            <Button onClick={() => handleStatusChange("active")} variant="success" size="lg">
+            <Button
+              onClick={() => {
+                if (confirm("수업을 시작하시겠습니까? 참여 코드가 발급되고 수강생이 입장할 수 있습니다.")) {
+                  handleStatusChange("active");
+                }
+              }}
+              variant="success"
+              size="lg"
+            >
               <Play className="h-4 w-4 mr-1" />
               수업 시작
             </Button>
           )}
           {session.status === "active" && (
-            <Button onClick={() => handleStatusChange("completed")} variant="destructive">
+            <Button
+              onClick={() => {
+                if (confirm("수업을 종료하시겠습니까? 종료 후에는 퀴즈 발송 및 응답 수집이 중단됩니다.")) {
+                  handleStatusChange("completed");
+                }
+              }}
+              variant="destructive"
+            >
               <Square className="h-4 w-4 mr-1" />
               수업 종료
             </Button>
@@ -296,8 +379,8 @@ export default function SessionDashboardPage({ params }: { params: Promise<{ id:
         </div>
       </div>
 
-      {/* Join Code + Participants */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+      {/* Stats Row */}
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
         {/* Join Code */}
         <Card>
           <CardHeader className="pb-3">
@@ -330,11 +413,15 @@ export default function SessionDashboardPage({ params }: { params: Promise<{ id:
           <CardContent>
             <p className="text-3xl font-bold">{participants.length}<span className="text-base font-normal text-muted-foreground">명</span></p>
             <div className="flex flex-wrap gap-1 mt-2">
-              {participants.slice(0, 8).map((p) => (
-                <Badge key={p.id} variant="secondary" className="text-xs">
-                  {session.anonymous_mode ? "익명" : p.display_name}
-                </Badge>
-              ))}
+              {participants.slice(0, 8).map((p) => {
+                const lvLabel = p.overall_level === "expert" ? "전문" : p.overall_level === "advanced" ? "고급" : p.overall_level === "intermediate" ? "중급" : p.overall_level === "elementary" ? "초급" : p.overall_level === "beginner" ? "입문" : null;
+                return (
+                  <Badge key={p.id} variant="secondary" className="text-xs gap-1">
+                    {session.anonymous_mode ? "익명" : p.display_name}
+                    {lvLabel && <span className="text-[9px] opacity-70 border-l pl-1 ml-0.5">{lvLabel}</span>}
+                  </Badge>
+                );
+              })}
               {participants.length > 8 && (
                 <Badge variant="secondary" className="text-xs">+{participants.length - 8}</Badge>
               )}
@@ -355,6 +442,44 @@ export default function SessionDashboardPage({ params }: { params: Promise<{ id:
             <p className="text-xs text-muted-foreground mt-1">
               {currentResponses.length} / {totalExpected} 응답
             </p>
+          </CardContent>
+        </Card>
+
+        {/* Total Quizzes */}
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              총 퀴즈
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-3xl font-bold">{quizzes.length}<span className="text-base font-normal text-muted-foreground">개</span></p>
+            <p className="text-xs text-muted-foreground mt-1">
+              {currentRound} 라운드 진행
+            </p>
+          </CardContent>
+        </Card>
+
+        {/* Avg Response Time */}
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-1">
+              <Timer className="h-3.5 w-3.5" />
+              평균 응답시간
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {(() => {
+              const timesMs = responses.filter((r) => r.response_time_ms).map((r) => r.response_time_ms!);
+              const avgMs = timesMs.length > 0 ? timesMs.reduce((s, t) => s + t, 0) / timesMs.length : 0;
+              const avgSec = (avgMs / 1000).toFixed(1);
+              return (
+                <>
+                  <p className="text-3xl font-bold">{avgMs > 0 ? avgSec : "-"}<span className="text-base font-normal text-muted-foreground">초</span></p>
+                  <p className="text-xs text-muted-foreground mt-1">{timesMs.length}개 응답 기준</p>
+                </>
+              );
+            })()}
           </CardContent>
         </Card>
       </div>
@@ -387,7 +512,7 @@ export default function SessionDashboardPage({ params }: { params: Promise<{ id:
           />
         </TabsContent>
         <TabsContent value="coaching">
-          <CoachingPanel coaching={coaching} isAnalyzing={isAnalyzing} />
+          <CoachingPanel coaching={coaching} isAnalyzing={isAnalyzing} misconceptionClusters={misconceptionClusters} />
         </TabsContent>
         <TabsContent value="delta">
           <DeltaPanel
@@ -416,7 +541,7 @@ export default function SessionDashboardPage({ params }: { params: Promise<{ id:
           isAnalyzing={isAnalyzing}
           onAnalyze={handleAnalyze}
         />
-        <CoachingPanel coaching={coaching} isAnalyzing={isAnalyzing} />
+        <CoachingPanel coaching={coaching} isAnalyzing={isAnalyzing} misconceptionClusters={misconceptionClusters} />
         <DeltaPanel
           sessionId={sessionId}
           currentRound={currentRound}
@@ -495,7 +620,19 @@ function QuizPanel({
                   </div>
                 ))}
               </div>
-              <Badge variant="secondary" className="text-xs">{quiz.topic_tag}</Badge>
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <Badge variant="secondary" className="text-xs">{quiz.topic_tag}</Badge>
+                {quiz.question_type && (
+                  <Badge variant="outline" className="text-xs text-blue-600 border-blue-200">
+                    {quiz.question_type === "output" ? "출력 예측" : quiz.question_type === "bug" ? "버그 찾기" : quiz.question_type === "fill" ? "빈칸 채우기" : quiz.question_type}
+                  </Badge>
+                )}
+                {quiz.misconception_tags && Array.isArray(quiz.misconception_tags) && (quiz.misconception_tags as string[]).length > 0 && (
+                  (quiz.misconception_tags as string[]).map((tag) => (
+                    <Badge key={tag} variant="outline" className="text-[10px] text-orange-500 border-orange-200">{tag}</Badge>
+                  ))
+                )}
+              </div>
             </div>
           ))
         )}
@@ -542,7 +679,7 @@ function HeatmapPanel({
           quizzes={quizzes}
           participants={participants}
         />
-        {analysisData && (
+        {analysisData && analysisData.understanding_scores && (
           <div className="mt-4 space-y-2">
             <h4 className="text-sm font-medium">토픽별 이해도</h4>
             <div className="space-y-1.5">
@@ -557,7 +694,7 @@ function HeatmapPanel({
                 </div>
               ))}
             </div>
-            {analysisData.weak_topics.length > 0 && (
+            {analysisData.weak_topics && analysisData.weak_topics.length > 0 && (
               <div className="flex flex-wrap gap-1 mt-2">
                 <span className="text-xs text-destructive font-medium">약점:</span>
                 {analysisData.weak_topics.map((t) => (
@@ -575,10 +712,14 @@ function HeatmapPanel({
 function CoachingPanel({
   coaching,
   isAnalyzing,
+  misconceptionClusters,
 }: {
-  coaching: CoachingSuggestion[];
+  coaching: CoachingData[];
   isAnalyzing: boolean;
+  misconceptionClusters: Record<string, MisconceptionCluster[]>;
 }) {
+  const hasMisconceptions = Object.keys(misconceptionClusters).length > 0;
+
   return (
     <Card>
       <CardHeader>
@@ -587,37 +728,119 @@ function CoachingPanel({
           AI 코칭
         </CardTitle>
       </CardHeader>
-      <CardContent>
+      <CardContent className="space-y-4 max-h-[600px] overflow-y-auto">
         {isAnalyzing && (
-          <div className="flex items-center gap-2 text-sm text-muted-foreground mb-3">
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <Spinner size="sm" />
-            AI가 분석 중입니다...
+            AI가 수업을 분석하고 있습니다...
           </div>
         )}
+
         {coaching.length === 0 && !isAnalyzing ? (
           <p className="text-sm text-muted-foreground text-center py-4">
-            이해도 분석을 실행하면 AI 코칭 메시지가 표시됩니다
+            이해도 분석을 실행하면 AI 코칭이 표시됩니다
           </p>
         ) : (
-          <Accordion type="single" collapsible defaultValue="item-0">
-            {coaching.map((item, idx) => (
-              <AccordionItem key={idx} value={`item-${idx}`}>
-                <AccordionTrigger className="text-sm">
-                  <div className="flex items-center gap-2">
-                    <Brain className="h-4 w-4 text-purple-500 shrink-0" />
-                    <span className="truncate">
-                      {item.coaching_suggestion?.slice(0, 60) ?? "코칭 제안"}...
-                    </span>
+          coaching.map((item, idx) => (
+            <div key={idx} className="space-y-3">
+              {/* 핵심 인사이트 */}
+              <div className="rounded-xl bg-gradient-to-r from-purple-500 to-indigo-600 p-4 text-white">
+                <div className="flex items-center gap-2 mb-1">
+                  <Lightbulb className="h-4 w-4" />
+                  <span className="text-xs font-semibold uppercase tracking-wider opacity-80">핵심 인사이트</span>
+                </div>
+                <p className="text-sm font-medium leading-relaxed">{item.insight}</p>
+              </div>
+
+              {/* 취약 개념 + 오개념 */}
+              <div className="grid grid-cols-1 gap-2">
+                <div className="rounded-lg border border-red-200 bg-red-50 p-3">
+                  <div className="flex items-center gap-1.5 mb-1">
+                    <AlertTriangle className="h-3.5 w-3.5 text-red-600" />
+                    <span className="text-xs font-semibold text-red-700">취약 개념</span>
                   </div>
-                </AccordionTrigger>
-                <AccordionContent>
-                  <div className="rounded-lg bg-purple-50 p-3 text-sm leading-relaxed whitespace-pre-wrap">
-                    {item.coaching_suggestion}
+                  <p className="text-sm text-red-800">{item.weakConcept}</p>
+                </div>
+                <div className="rounded-lg border border-orange-200 bg-orange-50 p-3">
+                  <div className="flex items-center gap-1.5 mb-1">
+                    <Target className="h-3.5 w-3.5 text-orange-600" />
+                    <span className="text-xs font-semibold text-orange-700">오개념 상세</span>
                   </div>
-                </AccordionContent>
-              </AccordionItem>
-            ))}
-          </Accordion>
+                  <p className="text-sm text-orange-800">{item.misconceptionDetail}</p>
+                </div>
+              </div>
+
+              {/* 수준별 제안 */}
+              <div className="grid grid-cols-1 gap-2">
+                <div className="rounded-lg border p-3">
+                  <div className="flex items-center gap-1.5 mb-1">
+                    <GraduationCap className="h-3.5 w-3.5 text-blue-600" />
+                    <span className="text-xs font-semibold text-blue-700">비전공자 대상 제안</span>
+                  </div>
+                  <p className="text-sm">{item.suggestionBeginner}</p>
+                </div>
+                <div className="rounded-lg border p-3">
+                  <div className="flex items-center gap-1.5 mb-1">
+                    <Briefcase className="h-3.5 w-3.5 text-violet-600" />
+                    <span className="text-xs font-semibold text-violet-700">경력자 대상 제안</span>
+                  </div>
+                  <p className="text-sm">{item.suggestionAdvanced}</p>
+                </div>
+              </div>
+
+              {/* 면접 팁 */}
+              {item.interviewTip && (
+                <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-3">
+                  <div className="flex items-center gap-1.5 mb-1">
+                    <Briefcase className="h-3.5 w-3.5 text-emerald-600" />
+                    <span className="text-xs font-semibold text-emerald-700">면접 팁</span>
+                  </div>
+                  <p className="text-sm text-emerald-800">{item.interviewTip}</p>
+                </div>
+              )}
+
+              {idx < coaching.length - 1 && <hr className="border-dashed" />}
+            </div>
+          ))
+        )}
+
+        {/* 오개념 클러스터 시각화 */}
+        {hasMisconceptions && (
+          <div className="border-t pt-4 mt-4">
+            <h4 className="text-sm font-semibold flex items-center gap-1.5 mb-3">
+              <AlertTriangle className="h-4 w-4 text-orange-500" />
+              오답 패턴 분석
+            </h4>
+            <div className="space-y-3">
+              {Object.entries(misconceptionClusters).map(([topic, clusters]) => (
+                <div key={topic} className="rounded-lg border p-3">
+                  <Badge variant="secondary" className="mb-2">{topic}</Badge>
+                  <div className="space-y-1.5">
+                    {clusters.sort((a, b) => b.count - a.count).slice(0, 3).map((c, ci) => (
+                      <div key={ci} className="flex items-center justify-between text-xs">
+                        <span className="text-muted-foreground truncate max-w-[60%]">
+                          &ldquo;{c.wrongAnswer}&rdquo; 선택
+                        </span>
+                        <div className="flex items-center gap-2">
+                          <div className="h-1.5 rounded-full bg-red-200 w-16">
+                            <div className="h-full rounded-full bg-red-500" style={{ width: `${Math.min(c.count * 20, 100)}%` }} />
+                          </div>
+                          <span className="font-mono font-bold text-red-600">{c.count}명</span>
+                        </div>
+                      </div>
+                    ))}
+                    {clusters[0]?.misconceptionTags?.length > 0 && (
+                      <div className="flex gap-1 mt-1">
+                        {clusters[0].misconceptionTags.map((tag) => (
+                          <Badge key={tag} variant="outline" className="text-[10px] text-orange-600 border-orange-200">{tag}</Badge>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
         )}
       </CardContent>
     </Card>

@@ -2,7 +2,7 @@
 
 import { useEffect, useState, use } from "react";
 import Link from "next/link";
-import { ArrowLeft, BookOpen, Target, Lightbulb } from "lucide-react";
+import { ArrowLeft, BookOpen, Target, Lightbulb, AlertCircle } from "lucide-react";
 import {
   RadarChart,
   PolarGrid,
@@ -17,9 +17,61 @@ import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 
 interface ReportData {
-  understanding_summary: Record<string, number> | null;
-  weak_topics: string[] | null;
-  recommendations: string | null;
+  understandingSummary: Record<string, number>;
+  weakTopics: string[];
+  recommendations: string;
+}
+
+/**
+ * DB 레코드(snake_case JSON)에서 표시용 데이터를 추출한다.
+ * understanding_summary는 AI 응답 전체가 JSON으로 저장되어 있을 수 있으므로
+ * topicScores 또는 understanding_summary 자체가 Record<string,number>인 경우를 모두 처리한다.
+ */
+function parseDbReport(row: Record<string, unknown>): ReportData {
+  // understanding_summary: AI 응답 전체를 저장한 JSON 또는 {topic: score} 형태
+  const rawSummary = row.understanding_summary;
+  let scores: Record<string, number> = {};
+
+  if (rawSummary && typeof rawSummary === "object" && !Array.isArray(rawSummary)) {
+    const summaryObj = rawSummary as Record<string, unknown>;
+    // AI 응답 전체가 저장된 경우 topicScores 필드를 찾는다
+    if (summaryObj.topicScores && typeof summaryObj.topicScores === "object") {
+      scores = summaryObj.topicScores as Record<string, number>;
+    } else {
+      // 직접 {topic: score} 형태
+      const entries = Object.entries(summaryObj).filter(
+        ([, v]) => typeof v === "number"
+      );
+      if (entries.length > 0) {
+        scores = Object.fromEntries(entries) as Record<string, number>;
+      }
+    }
+  }
+
+  // weak_topics: string[] 또는 JSON
+  const rawWeak = row.weak_topics;
+  const weakTopics: string[] = Array.isArray(rawWeak)
+    ? (rawWeak as string[])
+    : [];
+
+  // recommendations: string (줄바꿈 구분) 또는 AI 응답 내부
+  let recommendations = "";
+  if (typeof row.recommendations === "string") {
+    recommendations = row.recommendations;
+  } else if (
+    rawSummary &&
+    typeof rawSummary === "object" &&
+    !Array.isArray(rawSummary)
+  ) {
+    const summaryObj = rawSummary as Record<string, unknown>;
+    if (Array.isArray(summaryObj.recommendations)) {
+      recommendations = (summaryObj.recommendations as string[]).join("\n");
+    } else if (typeof summaryObj.recommendations === "string") {
+      recommendations = summaryObj.recommendations;
+    }
+  }
+
+  return { understandingSummary: scores, weakTopics, recommendations };
 }
 
 export default function StudentReportPage({ params }: { params: Promise<{ id: string }> }) {
@@ -27,13 +79,19 @@ export default function StudentReportPage({ params }: { params: Promise<{ id: st
   const [report, setReport] = useState<ReportData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     async function load() {
       const response = await fetch(`/api/ai/report?sessionId=${sessionId}`);
       if (response.ok) {
         const result = await response.json();
-        setReport(result.data ?? null);
+        // GET 응답: { data: { reports: [...] } }
+        const reports = result.data?.reports ?? [];
+        if (reports.length > 0) {
+          setReport(parseDbReport(reports[0]));
+        }
+        // 리포트가 없으면 null 유지 → "생성" 버튼 표시
       }
       setIsLoading(false);
     }
@@ -42,15 +100,47 @@ export default function StudentReportPage({ params }: { params: Promise<{ id: st
 
   async function handleGenerate() {
     setIsGenerating(true);
+    setError(null);
     try {
       const response = await fetch("/api/ai/report", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ sessionId }),
       });
-      if (response.ok) {
-        const result = await response.json();
-        setReport(result.data ?? null);
+
+      if (!response.ok) {
+        const errResult = await response.json().catch(() => null);
+        setError(errResult?.error ?? "리포트 생성에 실패했습니다.");
+        return;
+      }
+
+      const result = await response.json();
+      // POST 응답: { data: { report: { topicScores, weakTopics, ... }, reportId } }
+      const aiReport = result.data?.report;
+      if (aiReport) {
+        const topicScores: Record<string, number> =
+          aiReport.topicScores ?? aiReport.understanding_summary ?? {};
+        const weakTopics: string[] =
+          aiReport.weakTopics ?? aiReport.weak_topics ?? [];
+        const recommendations: string = Array.isArray(aiReport.recommendations)
+          ? aiReport.recommendations.join("\n")
+          : aiReport.recommendations ?? "";
+
+        setReport({
+          understandingSummary: topicScores,
+          weakTopics,
+          recommendations,
+        });
+      } else {
+        // fallback: DB 레코드에서 다시 로드
+        const reloadRes = await fetch(`/api/ai/report?sessionId=${sessionId}`);
+        if (reloadRes.ok) {
+          const reloadResult = await reloadRes.json();
+          const reports = reloadResult.data?.reports ?? [];
+          if (reports.length > 0) {
+            setReport(parseDbReport(reports[0]));
+          }
+        }
       }
     } finally {
       setIsGenerating(false);
@@ -65,12 +155,14 @@ export default function StudentReportPage({ params }: { params: Promise<{ id: st
     );
   }
 
-  const radarData = report?.understanding_summary
-    ? Object.entries(report.understanding_summary).map(([topic, score]) => ({
-        topic,
-        score,
-        fullMark: 100,
-      }))
+  const radarData = report?.understandingSummary
+    ? Object.entries(report.understandingSummary)
+        .filter(([, score]) => typeof score === "number")
+        .map(([topic, score]) => ({
+          topic,
+          score,
+          fullMark: 100,
+        }))
     : [];
 
   return (
@@ -84,10 +176,26 @@ export default function StudentReportPage({ params }: { params: Promise<{ id: st
       </Link>
 
       <div className="text-center">
-        <BookOpen className="h-10 w-10 text-primary mx-auto mb-2" />
+        <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-500 to-indigo-600 shadow-lg shadow-blue-500/25 mb-3">
+          <BookOpen className="h-7 w-7 text-white" />
+        </div>
         <h1 className="text-2xl font-bold">학습 리포트</h1>
-        <p className="text-muted-foreground text-sm">AI가 분석한 나의 이해도 리포트</p>
+        <p className="text-muted-foreground text-sm mt-1">AI가 분석한 나의 이해도 리포트</p>
       </div>
+
+      {error && (
+        <Card className="border-destructive/50">
+          <CardContent className="py-4 flex items-start gap-3">
+            <AlertCircle className="h-5 w-5 text-destructive shrink-0 mt-0.5" />
+            <div>
+              <p className="text-sm font-medium text-destructive">{error}</p>
+              <p className="text-xs text-muted-foreground mt-1">
+                퀴즈 응답이 있어야 리포트를 생성할 수 있습니다
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {!report ? (
         <Card className="text-center">
@@ -133,7 +241,7 @@ export default function StudentReportPage({ params }: { params: Promise<{ id: st
           )}
 
           {/* Weak Topics */}
-          {report.weak_topics && report.weak_topics.length > 0 && (
+          {report.weakTopics.length > 0 && (
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2 text-base text-destructive">
@@ -143,7 +251,7 @@ export default function StudentReportPage({ params }: { params: Promise<{ id: st
               </CardHeader>
               <CardContent>
                 <div className="flex flex-wrap gap-2">
-                  {report.weak_topics.map((topic) => (
+                  {report.weakTopics.map((topic) => (
                     <Badge key={topic} variant="destructive" className="text-sm px-3 py-1">
                       {topic}
                     </Badge>
@@ -169,6 +277,22 @@ export default function StudentReportPage({ params }: { params: Promise<{ id: st
                 <div className="rounded-lg bg-blue-50 p-4 text-sm leading-relaxed whitespace-pre-wrap">
                   {report.recommendations}
                 </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* No data fallback */}
+          {radarData.length === 0 && report.weakTopics.length === 0 && !report.recommendations && (
+            <Card className="text-center">
+              <CardContent className="py-8">
+                <p className="text-muted-foreground mb-4">리포트 데이터를 표시할 수 없습니다</p>
+                <Button onClick={handleGenerate} disabled={isGenerating} variant="outline">
+                  {isGenerating ? (
+                    <><Spinner size="sm" className="mr-1" /> 재생성 중...</>
+                  ) : (
+                    "리포트 재생성"
+                  )}
+                </Button>
               </CardContent>
             </Card>
           )}

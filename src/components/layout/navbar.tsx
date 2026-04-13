@@ -22,11 +22,12 @@ const ROLE_NAV: Record<string, Array<{ href: string; label: string }>> = {
     { href: "/mentor", label: "멘토" },
   ],
   student: [
+    { href: "/student", label: "내 수업" },
+    { href: "/student/assessment", label: "역량 진단" },
     { href: "/student/join", label: "수업 참여" },
   ],
   owner: [
     { href: "/owner", label: "대시보드" },
-    { href: "/mentor", label: "멘토" },
   ],
 };
 

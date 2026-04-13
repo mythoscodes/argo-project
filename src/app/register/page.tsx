@@ -10,6 +10,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Badge } from "@/components/ui/badge";
 
 const ROLE_OPTIONS = [
   { value: "teacher", label: "강사", description: "수업 세션 생성 및 AI 퀴즈 관리" },
@@ -26,6 +27,8 @@ export default function RegisterPage() {
   const [displayName, setDisplayName] = useState("");
   const [role, setRole] = useState("");
   const [academyName, setAcademyName] = useState("");
+  const [experienceLevel, setExperienceLevel] = useState("");
+  const [interests, setInterests] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -60,6 +63,10 @@ export default function RegisterPage() {
           display_name: displayName,
           role,
           ...(role === "owner" ? { academy_name: academyName } : {}),
+          ...(role === "student" ? {
+            experience_level: experienceLevel || undefined,
+            interests: interests.length > 0 ? interests : undefined,
+          } : {}),
         }),
       });
 
@@ -89,7 +96,7 @@ export default function RegisterPage() {
           router.push("/instructor");
           break;
         case "student":
-          router.push("/student/join");
+          router.push("/student");
           break;
         case "owner":
           router.push("/owner");
@@ -108,8 +115,12 @@ export default function RegisterPage() {
   const selectedRoleInfo = ROLE_OPTIONS.find((r) => r.value === role);
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-blue-50 via-background to-indigo-50 p-4">
-      <div className="w-full max-w-md space-y-6">
+    <div className="relative flex min-h-screen items-center justify-center bg-gradient-to-br from-blue-50 via-background to-indigo-50 p-4 overflow-hidden">
+      {/* Animated bg orbs */}
+      <div className="absolute top-[-10%] right-[5%] h-[400px] w-[400px] rounded-full bg-indigo-100 opacity-40 blur-[100px] animate-pulse" />
+      <div className="absolute bottom-[-5%] left-[10%] h-[350px] w-[350px] rounded-full bg-blue-100 opacity-40 blur-[80px] animate-pulse" style={{ animationDelay: "1s" }} />
+
+      <div className="relative w-full max-w-md space-y-6">
         {/* Logo */}
         <div className="text-center space-y-2">
           <div className="flex justify-center">
@@ -231,6 +242,50 @@ export default function RegisterPage() {
                 </div>
               )}
 
+              {/* Student: Experience + Interests */}
+              {role === "student" && (
+                <>
+                  <div className="space-y-2">
+                    <Label>경력 수준</Label>
+                    <Select value={experienceLevel} onValueChange={setExperienceLevel}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="현재 수준 선택" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="beginner">입문 (비전공, IT 처음)</SelectItem>
+                        <SelectItem value="junior">초급 (기초 학습 완료)</SelectItem>
+                        <SelectItem value="mid">중급 (실무 경험 1~3년)</SelectItem>
+                        <SelectItem value="senior">고급 (실무 경험 3년+)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>관심 분야 (복수 선택)</Label>
+                    <div className="flex flex-wrap gap-2">
+                      {["Spring/Java", "React/JS", "Python", "정보보안", "네트워크", "데이터분석", "AI/ML", "클라우드"].map((interest) => (
+                        <Badge
+                          key={interest}
+                          variant={interests.includes(interest) ? "default" : "outline"}
+                          className="cursor-pointer transition-colors"
+                          onClick={() =>
+                            setInterests((prev) =>
+                              prev.includes(interest)
+                                ? prev.filter((i) => i !== interest)
+                                : [...prev, interest]
+                            )
+                          }
+                        >
+                          {interest}
+                        </Badge>
+                      ))}
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      관심 분야를 기반으로 맞춤 수업을 추천받을 수 있습니다
+                    </p>
+                  </div>
+                </>
+              )}
+
               {/* Error */}
               {error && (
                 <p className="text-sm text-destructive font-medium">{error}</p>
@@ -251,6 +306,22 @@ export default function RegisterPage() {
             로그인
           </Link>
         </p>
+
+        {/* 가입 혜택 */}
+        <div className="grid grid-cols-3 gap-3 pt-2">
+          {[
+            { icon: "AI", label: "AI 퀴즈 & 코칭", color: "text-yellow-600 bg-yellow-50" },
+            { icon: "Lv", label: "역량 진단 & 추적", color: "text-purple-600 bg-purple-50" },
+            { icon: "Rp", label: "맞춤 학습 리포트", color: "text-blue-600 bg-blue-50" },
+          ].map((f) => (
+            <div key={f.label} className="text-center">
+              <div className={`mx-auto mb-1.5 flex h-9 w-9 items-center justify-center rounded-lg text-xs font-bold ${f.color}`}>
+                {f.icon}
+              </div>
+              <p className="text-[10px] text-muted-foreground leading-tight">{f.label}</p>
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   );

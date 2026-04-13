@@ -1,6 +1,9 @@
+import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/rsc";
 import { Navbar } from "@/components/layout/navbar";
+
+export const metadata: Metadata = { title: "강사 대시보드" };
 
 const ROLE_HOME: Record<string, string> = {
   owner: "/owner",

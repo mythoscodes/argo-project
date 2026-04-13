@@ -47,6 +47,8 @@ export type Database = {
           role: string;
           display_name: string;
           email: string | null;
+          experience_level: string | null;
+          interests: string[];
           created_at: string;
           updated_at: string;
         };
@@ -56,6 +58,8 @@ export type Database = {
           role: string;
           display_name: string;
           email?: string | null;
+          experience_level?: string | null;
+          interests?: string[];
           created_at?: string;
           updated_at?: string;
         };
@@ -65,6 +69,8 @@ export type Database = {
           role?: string;
           display_name?: string;
           email?: string | null;
+          experience_level?: string | null;
+          interests?: string[];
           created_at?: string;
           updated_at?: string;
         };
@@ -386,6 +392,39 @@ export type Database = {
         Relationships: [];
       };
     };
+      skill_assessments: {
+        Row: {
+          id: string;
+          student_id: string;
+          academy_id: string;
+          assessment_type: string;
+          skill_scores: Json;
+          overall_level: string | null;
+          recommendations: Json;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          student_id: string;
+          academy_id: string;
+          assessment_type?: string;
+          skill_scores?: Json;
+          overall_level?: string | null;
+          recommendations?: Json;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          student_id?: string;
+          academy_id?: string;
+          assessment_type?: string;
+          skill_scores?: Json;
+          overall_level?: string | null;
+          recommendations?: Json;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
     Views: Record<string, never>;
     Functions: Record<string, never>;
     Enums: Record<string, never>;

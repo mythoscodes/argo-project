@@ -44,6 +44,7 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
+import { useToast } from "@/components/ui/toast";
 import { cn } from "@/lib/utils";
 
 interface StudentDetail {
@@ -75,9 +76,15 @@ interface ConsultationNote {
 }
 
 interface MentorBriefing {
-  talking_points: string[];
-  weakness_analysis: string;
-  recommended_strategy: string;
+  riskAssessment?: string;
+  talkingPoints?: string[];
+  talking_points?: string[];
+  weaknessAnalysis?: string;
+  weakness_analysis?: string;
+  consultationStrategy?: string;
+  recommended_strategy?: string;
+  encouragementTip?: string;
+  recommendedCourses?: Array<{ courseTitle: string; reason: string }>;
   recommended_courses?: string[];
 }
 
@@ -90,6 +97,7 @@ const TYPE_LABELS: Record<string, string> = {
 
 export default function MentorStudentDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id: studentId } = use(params);
+  const { toast } = useToast();
   const [student, setStudent] = useState<StudentDetail | null>(null);
   const [consultations, setConsultations] = useState<ConsultationNote[]>([]);
   const [briefing, setBriefing] = useState<MentorBriefing | null>(null);
@@ -100,12 +108,17 @@ export default function MentorStudentDetailPage({ params }: { params: Promise<{ 
   const [noteContent, setNoteContent] = useState("");
   const [nextDate, setNextDate] = useState("");
   const [isSavingNote, setIsSavingNote] = useState(false);
+  const [skillAssessment, setSkillAssessment] = useState<{
+    skills: Array<{ topic: string; score: number; level: string; feedback: string }>;
+    overall_level: string | null;
+  } | null>(null);
 
   useEffect(() => {
     async function load() {
-      const [studentRes, consultRes] = await Promise.all([
+      const [studentRes, consultRes, assessRes] = await Promise.all([
         fetch(`/api/mentor/students/${studentId}`),
         fetch(`/api/mentor/consultations?studentId=${studentId}`),
+        fetch(`/api/ai/assessment?studentId=${studentId}`),
       ]);
       if (studentRes.ok) {
         const result = await studentRes.json();
@@ -114,6 +127,17 @@ export default function MentorStudentDetailPage({ params }: { params: Promise<{ 
       if (consultRes.ok) {
         const result = await consultRes.json();
         setConsultations(result.data ?? []);
+      }
+      if (assessRes.ok) {
+        const result = await assessRes.json();
+        const assessments = result.data?.assessments ?? [];
+        if (assessments.length > 0) {
+          const latest = assessments[0];
+          setSkillAssessment({
+            skills: Array.isArray(latest.skill_scores) ? latest.skill_scores : [],
+            overall_level: latest.overall_level,
+          });
+        }
       }
       setIsLoading(false);
     }
@@ -130,7 +154,14 @@ export default function MentorStudentDetailPage({ params }: { params: Promise<{ 
       });
       if (response.ok) {
         const result = await response.json();
-        setBriefing(result.data);
+        if (result.data?.briefing) {
+          setBriefing(result.data.briefing);
+        } else if (result.data) {
+          setBriefing(result.data);
+        }
+      } else {
+        const errResult = await response.json().catch(() => null);
+        toast(errResult?.error ?? "AI 상담 브리핑 생성에 실패했습니다.", "error");
       }
     } finally {
       setIsBriefingLoading(false);
@@ -157,6 +188,9 @@ export default function MentorStudentDetailPage({ params }: { params: Promise<{ 
         setShowNoteDialog(false);
         setNoteContent("");
         setNextDate("");
+      } else {
+        const errResult = await response.json().catch(() => null);
+        toast(errResult?.error ?? "상담 기록 저장에 실패했습니다.", "error");
       }
     } finally {
       setIsSavingNote(false);
@@ -282,28 +316,54 @@ export default function MentorStudentDetailPage({ params }: { params: Promise<{ 
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
+            {/* 위험 판단 */}
+            {briefing.riskAssessment && (
+              <div className="rounded-lg bg-red-50 p-3">
+                <h4 className="text-sm font-semibold text-red-700 mb-1">이탈 위험 판단</h4>
+                <p className="text-sm text-red-800">{briefing.riskAssessment}</p>
+              </div>
+            )}
+
+            {/* 대화 포인트 */}
             <div>
               <h4 className="text-sm font-semibold text-purple-700 mb-2">대화 포인트</h4>
               <ol className="list-decimal list-inside space-y-1 text-sm">
-                {briefing.talking_points.map((point, idx) => (
+                {(briefing.talkingPoints ?? briefing.talking_points ?? []).map((point, idx) => (
                   <li key={idx}>{point}</li>
                 ))}
               </ol>
             </div>
+
+            {/* 약점 분석 */}
             <div>
               <h4 className="text-sm font-semibold text-purple-700 mb-1">약점 분석</h4>
-              <p className="text-sm">{briefing.weakness_analysis}</p>
+              <p className="text-sm">{briefing.weaknessAnalysis ?? briefing.weakness_analysis}</p>
             </div>
+
+            {/* 상담 전략 */}
             <div>
               <h4 className="text-sm font-semibold text-purple-700 mb-1">권장 상담 전략</h4>
-              <p className="text-sm">{briefing.recommended_strategy}</p>
+              <p className="text-sm">{briefing.consultationStrategy ?? briefing.recommended_strategy}</p>
             </div>
-            {briefing.recommended_courses && briefing.recommended_courses.length > 0 && (
+
+            {/* 격려 팁 */}
+            {briefing.encouragementTip && (
+              <div className="rounded-lg bg-green-50 p-3">
+                <h4 className="text-sm font-semibold text-green-700 mb-1">격려 방향</h4>
+                <p className="text-sm text-green-800">{briefing.encouragementTip}</p>
+              </div>
+            )}
+
+            {/* 추천 강의 (구조화) */}
+            {briefing.recommendedCourses && briefing.recommendedCourses.length > 0 && (
               <div>
-                <h4 className="text-sm font-semibold text-purple-700 mb-1">추천 강의</h4>
-                <div className="flex flex-wrap gap-2">
-                  {briefing.recommended_courses.map((course, idx) => (
-                    <Badge key={idx} variant="secondary">{course}</Badge>
+                <h4 className="text-sm font-semibold text-purple-700 mb-2">수준 기반 추천 강의</h4>
+                <div className="space-y-2">
+                  {briefing.recommendedCourses.map((course, idx) => (
+                    <div key={idx} className="rounded-lg border p-3">
+                      <p className="text-sm font-medium">{course.courseTitle}</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">{course.reason}</p>
+                    </div>
                   ))}
                 </div>
               </div>
@@ -384,6 +444,45 @@ export default function MentorStudentDetailPage({ params }: { params: Promise<{ 
                 </div>
               ))}
             </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* AI 역량 진단 결과 */}
+      {skillAssessment && skillAssessment.skills.length > 0 && (
+        <Card className="border-indigo-200 bg-indigo-50/30">
+          <CardHeader>
+            <CardTitle className="text-base flex items-center gap-2">
+              <Brain className="h-5 w-5 text-indigo-500" />
+              AI 역량 진단 결과
+              {skillAssessment.overall_level && (
+                <Badge variant="secondary" className="ml-auto text-xs">
+                  {skillAssessment.overall_level === "beginner" ? "입문" :
+                   skillAssessment.overall_level === "elementary" ? "초급" :
+                   skillAssessment.overall_level === "intermediate" ? "중급" :
+                   skillAssessment.overall_level === "advanced" ? "고급" : "전문가"} 수준
+                </Badge>
+              )}
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            {skillAssessment.skills.map((skill) => (
+              <div key={skill.topic} className="flex items-center gap-2">
+                <span className="text-xs w-20 truncate font-medium">{skill.topic}</span>
+                <div className="flex-1 h-2 rounded-full bg-muted overflow-hidden">
+                  <div
+                    className={cn(
+                      "h-full rounded-full",
+                      skill.score >= 80 ? "bg-green-500" :
+                      skill.score >= 60 ? "bg-yellow-500" :
+                      skill.score >= 40 ? "bg-orange-500" : "bg-red-500"
+                    )}
+                    style={{ width: `${skill.score}%` }}
+                  />
+                </div>
+                <span className="text-xs font-mono font-bold w-10 text-right">{skill.score}%</span>
+              </div>
+            ))}
           </CardContent>
         </Card>
       )}

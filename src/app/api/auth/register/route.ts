@@ -9,6 +9,8 @@ const registerSchema = z.object({
   role: z.enum(["teacher", "student", "owner", "mentor"]),
   academy_id: z.string().uuid().optional(),
   academy_name: z.string().min(1).max(100).optional(),
+  experience_level: z.enum(["beginner", "junior", "mid", "senior"]).optional(),
+  interests: z.array(z.string()).optional(),
 });
 
 export async function POST(request: NextRequest) {
@@ -23,7 +25,7 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const { email, password, display_name, role, academy_id, academy_name } = parsed.data;
+  const { email, password, display_name, role, academy_id, academy_name, experience_level, interests } = parsed.data;
   const admin = createAdminClient();
 
   // 1. academy_id 결정: 기존 학원 선택 또는 신규 생성 (원장)
@@ -92,6 +94,8 @@ export async function POST(request: NextRequest) {
       role,
       display_name,
       email,
+      experience_level: experience_level ?? null,
+      interests: interests ?? [],
     });
 
   if (profileError) {

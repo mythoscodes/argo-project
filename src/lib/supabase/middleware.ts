@@ -1,7 +1,7 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
-const PUBLIC_PATHS = ["/login", "/register"];
+const PUBLIC_PATHS = ["/login", "/register", "/landing"];
 
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({
@@ -37,10 +37,10 @@ export async function updateSession(request: NextRequest) {
   const isPublic = PUBLIC_PATHS.some((p) => pathname.startsWith(p));
   const isApi = pathname.startsWith("/api");
 
-  // 미인증 사용자 → 로그인 페이지로 리다이렉트 (공개 페이지/API 제외)
+  // 미인증 사용자 → 랜딩 페이지로 리다이렉트 (공개 페이지/API 제외)
   if (!user && !isPublic && !isApi) {
     const url = request.nextUrl.clone();
-    url.pathname = "/login";
+    url.pathname = "/landing";
     return NextResponse.redirect(url);
   }
 
