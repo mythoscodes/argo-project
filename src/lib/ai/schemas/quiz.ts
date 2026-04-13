@@ -25,7 +25,7 @@ export const GeneratedQuizQuestionSchema = z.object({
 });
 
 export const QuizGenerationResponseSchema = z.object({
-  questions: z.array(GeneratedQuizQuestionSchema).min(1).max(5),
+  questions: z.array(GeneratedQuizQuestionSchema).min(1).max(15),
 });
 
 export type GeneratedQuizQuestion = z.infer<typeof GeneratedQuizQuestionSchema>;

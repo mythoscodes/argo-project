@@ -33,10 +33,12 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Spinner } from "@/components/ui/spinner";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { UnderstandingHeatmap } from "@/components/heatmap/understanding-heatmap";
 import { DeltaChart } from "@/components/charts/delta-chart";
 import { useToast } from "@/components/ui/toast";
+import { cn } from "@/lib/utils";
 
 type SessionRow = Database["public"]["Tables"]["sessions"]["Row"];
 type QuizRow = Database["public"]["Tables"]["quizzes"]["Row"];
@@ -190,7 +192,7 @@ export default function SessionDashboardPage({ params }: { params: Promise<{ id:
   }
 
   // Generate quiz
-  async function handleGenerateQuiz() {
+  async function handleGenerateQuiz(count = 7, difficulty = "mixed") {
     if (!session) return;
     setIsGeneratingQuiz(true);
     const topics = Array.isArray(session.topics) ? session.topics as string[] : [];
@@ -202,8 +204,8 @@ export default function SessionDashboardPage({ params }: { params: Promise<{ id:
           sessionId,
           subject: session.subject,
           topic: topics.join(", ") || session.subject,
-          count: 5,
-          difficulty: "mixed",
+          count,
+          difficulty,
         }),
       });
       if (response.ok) {
@@ -263,7 +265,7 @@ export default function SessionDashboardPage({ params }: { params: Promise<{ id:
   }
 
   // Re-quiz (next round)
-  async function handleReQuiz() {
+  async function handleReQuiz(count = 5, difficulty = "mixed") {
     if (!session) return;
     setCurrentRound((prev) => prev + 1);
     setIsGeneratingQuiz(true);
@@ -276,8 +278,8 @@ export default function SessionDashboardPage({ params }: { params: Promise<{ id:
           sessionId,
           subject: session.subject,
           topic: topics.join(", ") || session.subject,
-          count: 5,
-          difficulty: "mixed",
+          count,
+          difficulty,
         }),
       });
       if (response.ok) {
@@ -495,6 +497,7 @@ export default function SessionDashboardPage({ params }: { params: Promise<{ id:
         <TabsContent value="quiz">
           <QuizPanel
             quizzes={currentQuizzes}
+            allQuizzes={quizzes}
             isGenerating={isGeneratingQuiz}
             onGenerate={handleGenerateQuiz}
             sessionActive={session.status === "active"}
@@ -528,6 +531,7 @@ export default function SessionDashboardPage({ params }: { params: Promise<{ id:
       <div className="hidden lg:grid lg:grid-cols-2 gap-4">
         <QuizPanel
           quizzes={currentQuizzes}
+          allQuizzes={quizzes}
           isGenerating={isGeneratingQuiz}
           onGenerate={handleGenerateQuiz}
           sessionActive={session.status === "active"}
@@ -557,40 +561,97 @@ export default function SessionDashboardPage({ params }: { params: Promise<{ id:
 
 function QuizPanel({
   quizzes,
+  allQuizzes,
   isGenerating,
   onGenerate,
   sessionActive,
   currentRound,
 }: {
   quizzes: QuizRow[];
+  allQuizzes: QuizRow[];
   isGenerating: boolean;
-  onGenerate: () => void;
+  onGenerate: (count: number, difficulty: string) => void;
   sessionActive: boolean;
   currentRound: number;
 }) {
+  const [preset, setPreset] = useState("standard");
+  const presets: Record<string, { label: string; count: number; difficulty: string; desc: string }> = {
+    quick: { label: "빠른 체크", count: 3, difficulty: "easy", desc: "기초 3문제" },
+    standard: { label: "기본", count: 5, difficulty: "mixed", desc: "혼합 5문제" },
+    thorough: { label: "심화", count: 7, difficulty: "mixed", desc: "혼합 7문제" },
+    exam: { label: "시험", count: 10, difficulty: "mixed", desc: "전범위 10문제" },
+    intensive: { label: "집중 훈련", count: 15, difficulty: "hard", desc: "고난도 15문제" },
+  };
+  const selectedPreset = presets[preset];
+
+  // 라운드 목록
+  const roundNumbers = [...new Set(allQuizzes.map((q) => q.round_number))].sort((a, b) => a - b);
+  const [viewRound, setViewRound] = useState(currentRound);
+  const viewQuizzes = viewRound === currentRound ? quizzes : allQuizzes.filter((q) => q.round_number === viewRound);
+
   return (
     <Card>
       <CardHeader>
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between flex-wrap gap-2">
           <CardTitle className="flex items-center gap-2">
             <Zap className="h-5 w-5 text-yellow-500" />
-            AI 퀴즈 (라운드 {currentRound})
+            AI 퀴즈
           </CardTitle>
           {sessionActive && (
-            <Button onClick={onGenerate} disabled={isGenerating} size="sm">
-              {isGenerating ? (
-                <><Spinner size="sm" className="mr-1" /> 생성중...</>
-              ) : (
-                <><Zap className="h-4 w-4 mr-1" /> 퀴즈 생성</>
-              )}
-            </Button>
+            <div className="flex items-center gap-2">
+              <Select value={preset} onValueChange={setPreset}>
+                <SelectTrigger className="w-[130px] h-8 text-xs">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {Object.entries(presets).map(([key, p]) => (
+                    <SelectItem key={key} value={key}>
+                      {p.label} ({p.count}문제)
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Button
+                onClick={() => onGenerate(selectedPreset.count, selectedPreset.difficulty)}
+                disabled={isGenerating}
+                size="sm"
+              >
+                {isGenerating ? (
+                  <><Spinner size="sm" className="mr-1" /> 생성중...</>
+                ) : (
+                  <><Zap className="h-4 w-4 mr-1" /> 생성</>
+                )}
+              </Button>
+            </div>
           )}
         </div>
+        {/* 라운드 탭 */}
+        {roundNumbers.length > 0 && (
+          <div className="flex gap-1 mt-2 flex-wrap">
+            {roundNumbers.map((r) => (
+              <button
+                key={r}
+                onClick={() => setViewRound(r)}
+                className={cn(
+                  "px-2.5 py-1 rounded-md text-xs font-medium transition-colors cursor-pointer",
+                  viewRound === r
+                    ? "bg-primary text-primary-foreground"
+                    : "bg-muted text-muted-foreground hover:bg-accent"
+                )}
+              >
+                R{r} ({allQuizzes.filter((q) => q.round_number === r).length}문제)
+              </button>
+            ))}
+          </div>
+        )}
+        <p className="text-xs text-muted-foreground mt-1">
+          {selectedPreset.desc} · {selectedPreset.difficulty === "mixed" ? "난이도 혼합" : selectedPreset.difficulty}
+        </p>
       </CardHeader>
-      <CardContent className="space-y-3 max-h-96 overflow-y-auto">
-        {quizzes.length === 0 ? (
+      <CardContent className="space-y-3 max-h-[500px] overflow-y-auto">
+        {viewQuizzes.length === 0 ? (
           <p className="text-sm text-muted-foreground text-center py-4">
-            AI 퀴즈를 생성하여 수강생에게 발송하세요
+            프리셋을 선택하고 AI 퀴즈를 생성하세요
           </p>
         ) : (
           quizzes.map((quiz, idx) => (
@@ -855,7 +916,7 @@ function DeltaPanel({
 }: {
   sessionId: string;
   currentRound: number;
-  onReQuiz: () => void;
+  onReQuiz: (count?: number, difficulty?: string) => void;
   isGenerating: boolean;
 }) {
   return (
@@ -867,11 +928,11 @@ function DeltaPanel({
             피드백 루프
           </CardTitle>
           {currentRound >= 1 && (
-            <Button onClick={onReQuiz} disabled={isGenerating} size="sm" variant="outline">
+            <Button onClick={() => onReQuiz(5, "mixed")} disabled={isGenerating} size="sm" variant="outline">
               {isGenerating ? (
                 <><Spinner size="sm" className="mr-1" /> 생성중...</>
               ) : (
-                <><RefreshCw className="h-4 w-4 mr-1" /> 재퀴즈</>
+                <><RefreshCw className="h-4 w-4 mr-1" /> 재퀴즈 (5문제)</>
               )}
             </Button>
           )}

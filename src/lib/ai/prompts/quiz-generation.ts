@@ -43,9 +43,14 @@ export function buildQuizSystemPrompt(): string {
 export function buildQuizUserPrompt(params: QuizPromptParams): string {
   const { subject, topic, count, difficulty, existingQuestions } = params;
 
+  const easyCount = difficulty === "mixed" ? Math.max(1, Math.floor(count * 0.3)) : (difficulty === "easy" ? count : 0);
+  const medCount = difficulty === "mixed" ? Math.max(1, Math.floor(count * 0.4)) : (difficulty === "medium" ? count : 0);
+  const hardCount = difficulty === "mixed" ? Math.max(1, count - easyCount - medCount) : (difficulty === "hard" ? count : 0);
+  const shortAnswerCount = Math.max(1, Math.floor(count * 0.25));
+
   const difficultyGuide =
     difficulty === "mixed"
-      ? `easy ${Math.ceil(count / 3)}개, medium ${Math.ceil(count / 3)}개, hard ${count - Math.ceil(count / 3) * 2}개`
+      ? `easy ${easyCount}개 (기초 개념 확인), medium ${medCount}개 (응용/코드 분석), hard ${hardCount}개 (실무/심화 사고)`
       : `모두 ${difficulty}`;
 
   const fewShotExample = getFewShotExample(subject);
@@ -67,8 +72,12 @@ ${avoidSection}
 - multiple_choice: 개념 이해 객관식
 - short_answer: 주관식 서술형 ("~을 설명하시오", "~의 차이점은?")
 
-중요: ${count}개 중 반드시 2개는 short_answer(주관식)로, 나머지는 객관식(code_output/find_bug/fill_blank/multiple_choice)으로 생성하세요.
-주관식(short_answer)은 options를 빈 배열 []로, correct_answer에 모범답안을 작성하세요.
+중요 규칙:
+- ${count}개 중 ${shortAnswerCount}개는 short_answer(주관식 서술형)로 생성하세요.
+- 주관식(short_answer)은 options를 빈 배열 []로, correct_answer에 모범답안(3문장 이내)을 작성하세요.
+- 나머지는 객관식으로, 유형을 다양하게 섞으세요 (code_output, find_bug, fill_blank, multiple_choice).
+- easy 문제는 개념 정의/용어 확인, medium은 코드 분석/응용, hard는 실무 트러블슈팅/설계 판단.
+- 같은 토픽이라도 난이도별로 다른 관점에서 출제하세요.
 
 참고 예시:
 ${fewShotExample}

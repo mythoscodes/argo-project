@@ -5,10 +5,19 @@ export const AI_TEMPERATURE_REPORT = 0.5;
 export const AI_MAX_RETRY_COUNT = 1;
 
 // 퀴즈 설정
-export const MAX_QUIZ_COUNT = 5;
-export const MIN_QUIZ_COUNT = 1;
-export const DEFAULT_QUIZ_COUNT = 5;
+export const MAX_QUIZ_COUNT = 15;
+export const MIN_QUIZ_COUNT = 3;
+export const DEFAULT_QUIZ_COUNT = 7;
 export const SHORT_ANSWER_COUNT = 2; // 주관식 문제 수
+
+// 난이도별 기본 문제 수 프리셋
+export const QUIZ_PRESETS: Record<string, { label: string; count: number; difficulty: string; desc: string }> = {
+  quick: { label: "빠른 체크", count: 3, difficulty: "easy", desc: "기초 확인용 3문제" },
+  standard: { label: "기본", count: 5, difficulty: "mixed", desc: "객관식 3 + 주관식 2" },
+  thorough: { label: "심화", count: 7, difficulty: "mixed", desc: "난이도별 혼합 7문제" },
+  exam: { label: "시험", count: 10, difficulty: "mixed", desc: "전범위 10문제" },
+  intensive: { label: "집중 훈련", count: 15, difficulty: "hard", desc: "고난도 15문제" },
+};
 
 // 세션 설정
 export const SESSION_CODE_LENGTH = 6;
